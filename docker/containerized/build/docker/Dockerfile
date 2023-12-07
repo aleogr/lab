@@ -8,7 +8,7 @@ RUN go mod download
 RUN go build -C cmd/app1/
 
 FROM cgr.dev/chainguard/static:latest-glibc AS release
-WORKDIR /app
+WORKDIR /usr/local/bin
 COPY --from=builder /build/cmd/app1/app1 .
 EXPOSE 8080
-ENTRYPOINT [ "/app/app1" ]
+ENTRYPOINT [ "/usr/local/bin/app1" ]
