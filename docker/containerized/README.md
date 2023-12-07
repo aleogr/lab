@@ -9,24 +9,19 @@ To make this work, place this project inside a [Go Workspace](https://go.dev/doc
 
 ## Usage
 
-Execute the following from inside build/docker dir.
-
 ### Build docker image
 
 ```bash
 docker image build \
 	--tag aleogr.dev/containerized \
-	--file Dockerfile \
-	../../.
+	--file build/docker/Dockerfile \
+	.
 ```
 
 ### Run containerized apps
 
 ```bash
 docker container run \
-    --rm \
-    --detach \
-    --name containerized \
     --publish 8080:8080 \
     aleogr.dev/containerized
 ```
