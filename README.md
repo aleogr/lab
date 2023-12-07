@@ -1,4 +1,4 @@
-# containerized
+# Lab
 
 In this sample a golang written app is packaged and run inside a docker container.
 
@@ -22,6 +22,9 @@ docker image build \
 
 ```bash
 docker container run \
+	--rm \
+	--detach \
+	--name lab \
     --publish 8080:8080 \
     aleogr.dev/lab
 ```
