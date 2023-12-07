@@ -5,5 +5,4 @@
 # Except these matches
 
 !go.mod
-!go.sum
 !**/*.go
