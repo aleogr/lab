@@ -7,7 +7,7 @@ RUN go mod tidy
 RUN go mod download
 RUN go build -C cmd/app1/
 
-FROM scratch AS release
+FROM cgr.dev/chainguard/static:latest-glibc AS release
 WORKDIR /app
 COPY --from=builder /build/cmd/app1/app1 .
 EXPOSE 8080
