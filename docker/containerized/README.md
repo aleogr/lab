@@ -9,7 +9,7 @@ To make this work, place this project inside a [Go Workspace](https://go.dev/doc
 
 ## Usage
 
-Execute the following from inside docker/build dir.
+Execute the following from inside build/docker dir.
 
 ### Build docker image
 
