@@ -25,8 +25,8 @@ docker container run \
 	--rm \
 	--detach \
 	--name lab \
-    --publish 8080:8080 \
-    aleogr.dev/lab
+	--publish 8080:8080 \
+	aleogr.dev/lab
 ```
 
 ### Verify docker env
