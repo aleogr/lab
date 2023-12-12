@@ -7,15 +7,35 @@ In this sample a golang written app is packaged and run inside a docker containe
 These apps are part of a Go Project, which is defined by a Go Module.
 To make this work, place this project inside a [Go Workspace](https://go.dev/doc/tutorial/workspaces).
 
-## Usage
+## Build
 
 ### Build docker image
 
 ```bash
 docker image build \
-	--tag aleogr.dev/lab \
+	--tag aleogr/lab \
 	--file build/docker/Dockerfile \
 	.
+```
+
+### Push to registry
+
+```bash
+docker push aleogr/lab
+```
+
+### Sign image with private key
+
+```bash
+cosign sign -key ~/.ssh/cosign.key aleogr/lab
+```
+
+## Run
+
+### Verify image with public key
+
+```bash
+cosign verify --key build/docker/cosign.pub aleogr/lab
 ```
 
 ### Run containerized apps
@@ -26,7 +46,7 @@ docker container run \
 	--detach \
 	--name lab \
 	--publish 8080:8080 \
-	aleogr.dev/lab
+	aleogr/lab
 ```
 
 ### Verify docker env
