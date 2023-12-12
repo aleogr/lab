@@ -13,7 +13,7 @@ To make this work, place this project inside a [Go Workspace](https://go.dev/doc
 
 ```bash
 docker image build \
-	--tag aleogr/lab \
+	--tag ghcr.io/aleogr/lab \
 	--file build/docker/Dockerfile \
 	.
 ```
@@ -21,7 +21,8 @@ docker image build \
 ### Push to registry
 
 ```bash
-docker push aleogr/lab
+docker push \
+	ghcr.io/aleogr/lab
 ```
 
 ### Sign image with private key
@@ -29,7 +30,7 @@ docker push aleogr/lab
 ```bash
 cosign sign \
 	--key ~/.ssh/cosign.key \
-	aleogr/lab
+	ghcr.io/aleogr/lab
 ```
 
 ## Run
@@ -39,7 +40,7 @@ cosign sign \
 ```bash
 cosign verify \
 	--key build/docker/cosign.pub \
-	aleogr/lab
+	ghcr.io/aleogr/lab
 ```
 
 ### Run containerized apps
@@ -50,7 +51,7 @@ docker container run \
 	--detach \
 	--name lab \
 	--publish 8080:8080 \
-	aleogr/lab
+	ghcr.io/aleogr/lab
 ```
 
 ### Verify docker env
