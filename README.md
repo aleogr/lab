@@ -27,7 +27,9 @@ docker push aleogr/lab
 ### Sign image with private key
 
 ```bash
-cosign sign -key ~/.ssh/cosign.key aleogr/lab
+cosign sign \
+	--key ~/.ssh/cosign.key \
+	aleogr/lab
 ```
 
 ## Run
@@ -35,7 +37,9 @@ cosign sign -key ~/.ssh/cosign.key aleogr/lab
 ### Verify image with public key
 
 ```bash
-cosign verify --key build/docker/cosign.pub aleogr/lab
+cosign verify \
+	--key build/docker/cosign.pub \
+	aleogr/lab
 ```
 
 ### Run containerized apps
