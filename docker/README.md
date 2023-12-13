@@ -15,6 +15,7 @@ Here you'll find:
 ## Requirements
 
 These containerized apps are part of a Go Project, which is defined by a Go Module.
+
 To make this work, place this project inside a [Go Workspace](https://go.dev/doc/tutorial/workspaces).
 
 ## Build
