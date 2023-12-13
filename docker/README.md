@@ -1,10 +1,20 @@
-# Lab
+# Docker Lab
 
-In this sample a golang written app is packaged and run inside a docker container.
+This lab is intended to experiment good practices related to dockerized apps building.
+
+Here you'll find:
+* Docker image naming convention
+* Signing and verifying published image with [cosign](https://github.com/sigstore/cosign)
+* Publishing public ssh-key alongside source code
+* Allow List strategy for .dockerignore file (exception for denials)
+* Build context handling for a subdir hosted Dockerfile
+* Multi-stage building with lean base images
+* Pre-Defined Annotation Keys from [image-spec](https://github.com/opencontainers/image-spec/blob/main/annotations.md#pre-defined-annotation-keys)
+
 
 ## Requirements
 
-These apps are part of a Go Project, which is defined by a Go Module.
+These containerized apps are part of a Go Project, which is defined by a Go Module.
 To make this work, place this project inside a [Go Workspace](https://go.dev/doc/tutorial/workspaces).
 
 ## Build

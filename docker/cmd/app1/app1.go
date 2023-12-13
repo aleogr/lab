@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/aleogr/lab/internal/privlib1"
+	"github.com/aleogr/lab/docker/internal/privlib1"
 )
 
 func main() {
