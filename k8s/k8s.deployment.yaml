@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-dockerapp
+  labels:
+    app: dockerapp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dockerapp
+  template:
+    metadata:
+      labels:
+        app: dockerapp
+    spec:
+      containers:
+        - name: container-dockerapp
+          image: ghcr.io/aleogr/docker:latest
+          ports:
+            - containerPort: 8080
+      imagePullSecrets:
+        - name: secret-ghcr
