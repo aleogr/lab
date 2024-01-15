@@ -5,7 +5,6 @@ nodes:
     extraPortMappings:
       - listenAddress: "127.0.0.1"
         containerPort: 32767
-        hostPort: 80
-  - role: worker
+        hostPort: 32767
   - role: worker
   - role: worker
