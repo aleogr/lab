@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-dockerapp
+  labels:
+    app.kubernetes.io/name: dockerapp
+spec:
+  containers:
+    - name: container-dockerapp
+      image: ghcr.io/aleogr/docker
+      ports:
+        - name: port-dockerapp
+          containerPort: 8080
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-dockerapp
+spec:
+  selector:
+    app.kubernetes.io/name: dockerapp
+  ports:
+    - name: service-dockerapp-port
+      protocol: TCP
+      port: 80
+      targetPort: port-dockerapp

@@ -4,7 +4,7 @@ nodes:
   - role: control-plane
     extraPortMappings:
       - listenAddress: "127.0.0.1"
-        containerPort: 32767
-        hostPort: 32767
+        containerPort: 8080
+        hostPort: 80
   - role: worker
   - role: worker

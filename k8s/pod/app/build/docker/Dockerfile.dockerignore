@@ -1,0 +1,8 @@
+# Ignore everything from build context
+
+*
+
+# Except these matches
+
+!go.mod
+!**/*.go

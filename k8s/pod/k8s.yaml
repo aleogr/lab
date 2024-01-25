@@ -1,0 +1,24 @@
+#deployment
+#configmap (env var)
+#horizontal pod autoscaling
+#service (cluster ip)
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-system
+spec:
+  selector:
+    matchLabels:
+      pod: system
+  template:
+    metadata:
+      labels:
+        pod: system
+    spec:
+      containers:
+        - name: k8s-app
+          image: ghcr.io/aleogr/k8s-app
+          ports:
+            - containerPort: 8080
+
