@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/aleogr/lab/k8s/app/internal/privlib1"
+	"github.com/aleogr/lab/k8s/pod/app/internal/privlib1"
 	"github.com/caarlos0/env/v10"
 )
 

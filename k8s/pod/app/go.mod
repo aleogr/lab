@@ -1,4 +1,4 @@
-module github.com/aleogr/lab/k8s/app
+module github.com/aleogr/lab/k8s/pod/app
 
 go 1.21.4
 

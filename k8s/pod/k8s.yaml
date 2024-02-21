@@ -1,7 +1,12 @@
-#deployment
+# Deployment
+# ClusterIP Service
+# Ingress
+
 #configmap (env var)
 #horizontal pod autoscaling
-#service (cluster ip)
+
+
+# Deployment
 
 apiVersion: apps/v1
 kind: Deployment
@@ -17,8 +22,32 @@ spec:
         pod: system
     spec:
       containers:
-        - name: k8s-app
+        - name: container-app
           image: ghcr.io/aleogr/k8s-app
           ports:
             - containerPort: 8080
 
+---
+
+# ClusterIP Service
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-system
+spec:
+  selector:
+    pod: system
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+
+---
+
+# Ingress
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-
