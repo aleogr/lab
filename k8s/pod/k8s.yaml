@@ -1,10 +1,4 @@
-# Deployment
-# ClusterIP Service
-# Ingress
-
-#configmap (env var)
-#horizontal pod autoscaling
-
+# ConfigMap
 
 # Deployment
 
@@ -26,6 +20,31 @@ spec:
           image: ghcr.io/aleogr/k8s-app
           ports:
             - containerPort: 8080
+#      imagePullSecrets:
+#        - name: secret-ghcr
+
+---
+
+# Horizontal Pod Autoscaler
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: deployment-system
+  minReplicas: 3
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
 
 ---
 
@@ -39,7 +58,8 @@ spec:
   selector:
     pod: system
   ports:
-    - protocol: TCP
+    - name: port-api
+      protocol: TCP
       port: 8080
       targetPort: 8080
 
@@ -50,4 +70,17 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: ingress-
+  name: ingress-system
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: system.aleogr.dev
+      http:
+        paths:
+          - path: "/api"
+            pathType: Prefix
+            backend:
+              service:
+                name: service-system
+                port:
+                  name: port-api
