@@ -1,4 +1,37 @@
+# Namespace
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: system
+  labels:
+    name: system
+
+---
+
 # ConfigMap
+
+#apiVersion: v1
+#kind: ConfigMap
+#metadata:
+#  name: configmap-env-system
+#  namespace: system
+#data:
+#  PORT: 8080
+#
+#---
+
+#apiVersion: v1
+#kind: ConfigMap
+#metadata:
+#  name: configmap-properties-system
+#  namespace: system
+#data:
+#  container1.properties: |
+#    key1=value1
+#    key2=value2
+#
+#---
 
 # Deployment
 
@@ -6,6 +39,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: deployment-system
+  namespace: system
 spec:
   selector:
     matchLabels:
@@ -20,6 +54,21 @@ spec:
           image: ghcr.io/aleogr/k8s-app
           ports:
             - containerPort: 8080
+#          envFrom:
+#            - configMapRef:
+#              name: configmap-env-system
+#          volumeMounts:
+#            - name: container1-properties
+#              mountPath: "/config"
+#              readOnly: true
+#      volumes:
+#        - name: container1-properties
+#          configMap:
+#            name: configmap-properties-system
+#            items:
+#              - key: "container1.properties"
+#                path: "container1.properties"
+
 #      imagePullSecrets:
 #        - name: secret-ghcr
 
@@ -31,6 +80,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: hpa-system
+  namespace: system
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -54,6 +104,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: service-system
+  namespace: system
 spec:
   selector:
     pod: system
@@ -61,7 +112,6 @@ spec:
     - name: port-api
       protocol: TCP
       port: 8080
-      targetPort: 8080
 
 ---
 
@@ -71,13 +121,14 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ingress-system
+  namespace: system
 spec:
   ingressClassName: nginx
   rules:
-    - host: system.aleogr.dev
+    - host: localhost
       http:
         paths:
-          - path: "/api"
+          - path: /api
             pathType: Prefix
             backend:
               service:
