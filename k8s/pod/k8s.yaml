@@ -9,7 +9,19 @@ metadata:
 
 ---
 
-#ConfigMap
+# Secret
+
+# ConfigMap
+
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: configmap-args
+  namespace: system
+data:
+  key1=value1
+
+---
 
 kind: ConfigMap
 apiVersion: v1
@@ -18,6 +30,17 @@ metadata:
   namespace: system
 data:
   PORT: "8070"
+
+---
+
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: configmap-props
+  namespace: system
+data:
+  container1.properties: |
+    key1=value1
 
 ---
 
