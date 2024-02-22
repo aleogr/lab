@@ -1,7 +1,7 @@
 # Namespace
 
-apiVersion: v1
 kind: Namespace
+apiVersion: v1
 metadata:
   name: system
   labels:
@@ -9,34 +9,22 @@ metadata:
 
 ---
 
-# ConfigMap
+#ConfigMap
 
-#apiVersion: v1
-#kind: ConfigMap
-#metadata:
-#  name: configmap-env-system
-#  namespace: system
-#data:
-#  PORT: 8080
-#
-#---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: configmap-env
+  namespace: system
+data:
+  PORT: "8070"
 
-#apiVersion: v1
-#kind: ConfigMap
-#metadata:
-#  name: configmap-properties-system
-#  namespace: system
-#data:
-#  container1.properties: |
-#    key1=value1
-#    key2=value2
-#
-#---
+---
 
 # Deployment
 
-apiVersion: apps/v1
 kind: Deployment
+apiVersion: apps/v1
 metadata:
   name: deployment-system
   namespace: system
@@ -52,32 +40,16 @@ spec:
       containers:
         - name: container-app
           image: ghcr.io/aleogr/k8s-app
-          ports:
-            - containerPort: 8080
-#          envFrom:
-#            - configMapRef:
-#              name: configmap-env-system
-#          volumeMounts:
-#            - name: container1-properties
-#              mountPath: "/config"
-#              readOnly: true
-#      volumes:
-#        - name: container1-properties
-#          configMap:
-#            name: configmap-properties-system
-#            items:
-#              - key: "container1.properties"
-#                path: "container1.properties"
-
-#      imagePullSecrets:
-#        - name: secret-ghcr
+          envFrom:
+            - configMapRef:
+                name: configmap-env
 
 ---
 
 # Horizontal Pod Autoscaler
 
-apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
+apiVersion: autoscaling/v2
 metadata:
   name: hpa-system
   namespace: system
@@ -100,8 +72,8 @@ spec:
 
 # ClusterIP Service
 
-apiVersion: v1
 kind: Service
+apiVersion: v1
 metadata:
   name: service-system
   namespace: system
@@ -111,14 +83,14 @@ spec:
   ports:
     - name: port-api
       protocol: TCP
-      port: 8080
+      port: 8070
 
 ---
 
 # Ingress
 
-apiVersion: networking.k8s.io/v1
 kind: Ingress
+apiVersion: networking.k8s.io/v1
 metadata:
   name: ingress-system
   namespace: system
