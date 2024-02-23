@@ -19,7 +19,7 @@ metadata:
   name: configmap-args
   namespace: system
 data:
-  key1=value1
+  key1: value1
 
 ---
 
@@ -66,6 +66,17 @@ spec:
           envFrom:
             - configMapRef:
                 name: configmap-env
+          volumeMounts:
+            - name: volume-container1-properties
+              mountPath: "/config"
+              readOnly: true
+      volumes:
+        - name: volume-container1-properties
+          configMap:
+            name: configmap-props
+            items:
+              - key: "container1.properties"
+                path: "container1.properties"
 
 ---
 
