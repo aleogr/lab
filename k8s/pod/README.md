@@ -29,22 +29,22 @@ kubectl config set-context \
 
 ```bash
 kubectl apply \
-    -f yaml/secret.yaml
+    -f yaml/resources/secret.yaml
 
 kubectl apply \
-    -f yaml/configmap.yaml
+    -f yaml/resources/configmap.yaml
 
 kubectl apply \
-    -f yaml/deployment.yaml
+    -f yaml/resources/deployment.yaml
 
 kubectl apply \
-    -f yaml/hpa.yaml
+    -f yaml/resources/hpa.yaml
 
 kubectl apply \
-    -f yaml/service.yaml
+    -f yaml/resources/service.yaml
 
 kubectl apply \
-    -f yaml/ingress.yaml
+    -f yaml/resources/ingress.yaml
 ```
 
 ## Debug pod's container
