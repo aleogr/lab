@@ -50,6 +50,17 @@ spec:
       labels:
         pod: system
     spec:
+      initContainers:
+        - name: container-init
+          image: cgr.dev/chainguard/busybox
+          command: ['sh', '-c', 'sleep 30 && echo Running in container-init!']
+            #        - name: container-sidecar
+            #          image: cgr.dev/chainguard/busybox
+            #          command: ['sh', 'echo Running in container-sidecar!']
+            #          restartPolicy: Always
+            #          volumeMounts:
+            #            - name: volume-container1-properties
+            #              mountPath: "/config"
       containers:
         - name: container-app
           image: ghcr.io/aleogr/k8s-app
@@ -61,10 +72,6 @@ spec:
               mountPath: "/config"
               readOnly: true
           args: ["$(PORT)"]
-      initContainers:
-        - name: initcontainer-one
-          image: cgr.dev/chainguard/busybox
-          command: ['sh', '-c', 'sleep 60 && echo The app is running!']
       volumes:
         - name: volume-container1-properties
           configMap:
