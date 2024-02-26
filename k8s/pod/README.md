@@ -1,8 +1,25 @@
 # [Pod](https://kubernetes.io/docs/concepts/workloads/pods/)
 
-## Set namespace to current k8s context
+## Create cluster
 
 ```bash
+kind create cluster \
+    --config yaml/cluster.yaml
+```
+
+## Create NGINX Ingress Controller
+
+```bash
+kubectl apply \
+    -f yaml/ingress-controller.yaml
+```
+
+## Create and set default namespace
+
+```bash
+kubectl apply \
+    -f yaml/namespace.yaml
+
 kubectl config set-context \
     --current \
     --namespace=system
