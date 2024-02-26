@@ -25,6 +25,28 @@ kubectl config set-context \
     --namespace=system
 ```
 
+## Create resources
+
+```bash
+kubectl apply \
+    -f yaml/secret.yaml
+
+kubectl apply \
+    -f yaml/configmap.yaml
+
+kubectl apply \
+    -f yaml/deployment.yaml
+
+kubectl apply \
+    -f yaml/hpa.yaml
+
+kubectl apply \
+    -f yaml/service.yaml
+
+kubectl apply \
+    -f yaml/ingress.yaml
+```
+
 ## Debug pod's container
 
 ```bash
