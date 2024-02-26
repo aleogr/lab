@@ -1,0 +1,12 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: system
+  labels:
+    name: system
+    app.kubernetes.io/name: name
+    app.kubernetes.io/instance: instance
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: component
+    app.kubernetes.io/part-of: part-of
+    app.kubernetes.io/managed-by: managed-by

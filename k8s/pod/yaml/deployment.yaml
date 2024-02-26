@@ -1,0 +1,58 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: deployment-system
+  namespace: system
+  labels:
+    app.kubernetes.io/name: name
+    app.kubernetes.io/instance: instance
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: component
+    app.kubernetes.io/part-of: part-of
+    app.kubernetes.io/managed-by: managed-by
+spec:
+  selector:
+    matchLabels:
+      pod: system
+  template:
+    metadata:
+      labels:
+        pod: system
+        app.kubernetes.io/name: name
+        app.kubernetes.io/instance: instance
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/component: component
+        app.kubernetes.io/part-of: part-of
+        app.kubernetes.io/managed-by: managed-by
+    spec:
+      #      imagePullSecrets:
+      #        - name: secret-ghcr
+      initContainers:
+        - name: container-init
+          image: cgr.dev/chainguard/busybox
+          command: ['sh', '-c', 'sleep 30 && echo Running in container-init!']
+            #        - name: container-sidecar
+            #          image: cgr.dev/chainguard/busybox
+            #          command: ['sh', 'echo Running in container-sidecar!']
+            #          restartPolicy: Always
+            #          volumeMounts:
+            #            - name: volume-container1-properties
+            #              mountPath: "/config"
+      containers:
+        - name: container-app
+          image: ghcr.io/aleogr/k8s-app
+          envFrom:
+            - configMapRef:
+                name: configmap-env
+          volumeMounts:
+            - name: volume-container1-properties
+              mountPath: "/config"
+              readOnly: true
+          args: ["$(PORT)"]
+      volumes:
+        - name: volume-container1-properties
+          configMap:
+            name: configmap-props
+            items:
+              - key: "container1.properties"
+                path: "container1.properties"

@@ -1,0 +1,32 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: configmap-env
+  namespace: system
+  labels:
+    app.kubernetes.io/name: name
+    app.kubernetes.io/instance: instance
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: component
+    app.kubernetes.io/part-of: part-of
+    app.kubernetes.io/managed-by: managed-by
+data:
+  PORT: "8070"
+
+---
+
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: configmap-props
+  namespace: system
+  labels:
+    app.kubernetes.io/name: name
+    app.kubernetes.io/instance: instance
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: component
+    app.kubernetes.io/part-of: part-of
+    app.kubernetes.io/managed-by: managed-by
+data:
+  container1.properties: |
+    key=value

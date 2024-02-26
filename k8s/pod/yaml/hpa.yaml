@@ -1,0 +1,26 @@
+kind: HorizontalPodAutoscaler
+apiVersion: autoscaling/v2
+metadata:
+  name: hpa-system
+  namespace: system
+  labels:
+    app.kubernetes.io/name: name
+    app.kubernetes.io/instance: instance
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: component
+    app.kubernetes.io/part-of: part-of
+    app.kubernetes.io/managed-by: managed-by
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: deployment-system
+  minReplicas: 3
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
