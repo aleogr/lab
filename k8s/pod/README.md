@@ -7,9 +7,8 @@
 ```bash
 kubectl debug $POD \
     --namespace system \
-    --image cgr.dev/chainguard/busybox \
-    --stdin \
-    --tty \
+    --image busybox \
+    --stdin --tty \
     --share-processes \
-    --copy-to debug-$POD
+    --copy-to $POD-debug
 ```

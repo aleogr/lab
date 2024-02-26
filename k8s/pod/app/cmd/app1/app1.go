@@ -19,7 +19,7 @@ func web(cfg config, args []string) {
 		func(w http.ResponseWriter, req *http.Request) {
 			fmt.Fprintf(
 				w,
-        "utils.IntMin(1,-2) = %d\n\nargs: %v\n\nenv: %v\n",
+        "v1: utils.IntMin(1,-2) = %d\n\nargs: %v\n\nenv: %v\n",
 				privlib1.IntMin(1, -2),
         args,
         cfg,
