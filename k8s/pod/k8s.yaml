@@ -9,7 +9,6 @@ metadata:
 
 ---
 
-# Ephemeral Container
 # Secret
 
 # ConfigMap
@@ -62,6 +61,10 @@ spec:
               mountPath: "/config"
               readOnly: true
           args: ["$(PORT)"]
+      initContainers:
+        - name: initcontainer-one
+          image: cgr.dev/chainguard/busybox
+          command: ['sh', '-c', 'sleep 60 && echo The app is running!']
       volumes:
         - name: volume-container1-properties
           configMap:
