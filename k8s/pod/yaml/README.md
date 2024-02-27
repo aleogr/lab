@@ -29,22 +29,8 @@ kubectl config set-context \
 
 ```bash
 kubectl apply \
-    -f resources/secret.yaml
-
-kubectl apply \
-    -f resources/configmap.yaml
-
-kubectl apply \
-    -f resources/deployment.yaml
-
-kubectl apply \
-    -f resources/hpa.yaml
-
-kubectl apply \
-    -f resources/service.yaml
-
-kubectl apply \
-    -f resources/ingress.yaml
+    --recursive=true \
+    --filename=resources
 ```
 
 ## Debug pod's container
