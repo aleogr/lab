@@ -31,26 +31,20 @@ spec:
         - name: container-init
           image: cgr.dev/chainguard/busybox
           command: ['sh', '-c', 'echo Running in container-init!']
-            #        - name: container-sidecar
-            #          image: cgr.dev/chainguard/busybox
-            #          command: ['sh', 'echo Running in container-sidecar!']
-            #          restartPolicy: Always
-            #          volumeMounts:
-            #            - name: volume-container1-properties
-            #              mountPath: "/config"
       containers:
         - name: container-app
           image: ghcr.io/aleogr/k8s-app
-          envFrom:
-            - configMapRef:
-                name: configmap-env
           volumeMounts:
+            - name: volume-secret-generic
+              mountPath: /etc/secret
+              readOnly: true
             - name: volume-container1-properties
               mountPath: "/config"
               readOnly: true
-            - name: volume-secret-generic
-              mountPath: /etc/secret
           args: ["$(PORT)"]
+          envFrom:
+            - configMapRef:
+                name: configmap-env
       volumes:
         - name: volume-container1-properties
           configMap:
