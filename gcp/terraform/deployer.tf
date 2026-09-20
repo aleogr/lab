@@ -48,6 +48,21 @@ resource "google_project_iam_member" "deployer_iam" {
   member  = "serviceAccount:${google_service_account.deployer.email}"
 }
 
+
+# AND THE POOL IT AUTHENTICATES ITSELF WITH, which is the one this
+# configuration declares. Neither cloudsql.admin nor projectIamAdmin can read a
+# workload identity pool, so the first plan run AS this identity failed
+# refreshing it — the bootstrap plan did not catch it, because that one runs as
+# the project's owner.
+#
+# It is also granted by hand once, because the chicken and egg bites here: this
+# binding cannot be applied by an identity that cannot read the pool. The
+# declaration is what keeps it true afterwards.
+resource "google_project_iam_member" "deployer_workload_identity" {
+  project = var.project_id
+  role    = "roles/iam.workloadIdentityPoolAdmin"
+  member  = "serviceAccount:${google_service_account.deployer.email}"
+}
 data "google_project" "current" {
   project_id = var.project_id
 }
