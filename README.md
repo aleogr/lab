@@ -17,6 +17,59 @@ deliberate: whoever looks after the house is the house; whoever looks after a
 room is whoever lives in it. A tenant cannot change the instance, and this
 repository cannot change a tenant's data.
 
+## What was done by hand, and why it is not in the configuration
+
+Four things exist because somebody typed a command. Each is here with the
+reason it is not code — "somebody did it in the console once" is not among
+them.
+
+**The project and the state bucket.** Terraform cannot create the place it
+stores its state, so `aleogr-lab-shared-dacd` and
+`gs://aleogr-lab-shared-dacd-tfstate` were created first. The bucket is
+versioned: a truncated state write has to be recoverable.
+
+**The deploy identity's first apply.** A federation cannot apply itself — the
+identity that applies it has to exist already — so `deployer.tf` was applied
+once from the commit that held it alone, by the project's owner.
+
+**Three grants to the deploy identity.** Terraform manages the pool, the
+service account and the state, and needs permission on all three before it can
+read them:
+
+```sh
+PROJECT=aleogr-lab-shared-dacd
+SA="serviceAccount:deployer@$PROJECT.iam.gserviceaccount.com"
+
+gcloud storage buckets add-iam-policy-binding "gs://$PROJECT-tfstate" \
+  --member="$SA" --role=roles/storage.objectAdmin
+
+gcloud projects add-iam-policy-binding "$PROJECT" \
+  --member="$SA" --role=roles/iam.workloadIdentityPoolAdmin --condition=None
+
+gcloud projects add-iam-policy-binding "$PROJECT" \
+  --member="$SA" --role=roles/iam.serviceAccountAdmin --condition=None
+```
+
+The last two are also declared in `deployer.tf`, and the first deliberately is
+not: a `google_storage_bucket_iam_member` would have Terraform managing the
+access it needs in order to run, so a `terraform destroy` would revoke its own
+reach to the state halfway through its own execution.
+
+### The blind spot these three came from
+
+All three were discovered by a red check, one at a time, and the reason is
+worth writing down. **The bootstrap plan runs as the project's owner, who can
+read everything.** Any permission the deploy identity needs and the owner
+already has is invisible there. The first plan run *as* the deploy identity is
+the first honest one.
+
+If a resource is added to this configuration whose API the deployer cannot
+already reach, expect the same failure, and grant for the resource rather than
+waiting to be told which permission is missing.
+
+**IAM changes take a few minutes to propagate.** A run started immediately
+after a grant can still be refused; that is not a second missing permission.
+
 ## The rule that decides what may live here
 
 **Consolidate by environment, never across environments.** Every database in
