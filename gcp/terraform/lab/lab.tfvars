@@ -1,5 +1,6 @@
 # lab/lab.tfvars — project_id arrives from the repository variable GCP_PROJECT_ID
 region = "us-central1"
 
-# Filled in by Task 5, when the marketplace deployer's address is known.
-tenants = {}
+tenants = {
+  marketplace = "deployer@aleogr-marketplace-lab-a4j5.iam.gserviceaccount.com"
+}
