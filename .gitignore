@@ -1,0 +1,7 @@
+# Terraform working directories and plan output, for every provider directory.
+# The provider lock file (gcp/terraform/.terraform.lock.hcl) is versioned on
+# purpose: the floor in versions.tf refuses a release that cannot read the
+# configuration, and the lock names the exact provider build that did.
+.terraform/
+tfplan
+plan.txt
