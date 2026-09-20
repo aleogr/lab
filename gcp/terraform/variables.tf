@@ -28,9 +28,9 @@ variable "database_disk_limit" {
 }
 
 variable "tenants" {
-  description = "Each project that keeps a database in this instance, and the identities it reaches it with. `deployer` declares the tenant's own database and users; `connects` may open a connection through the connector; `logs_in` may authenticate as an IAM database user. Nothing here lets a tenant change the instance."
+  description = "Each project that keeps a database in this instance, and the identities it reaches it with. `declares` is the identity that APPLIES the tenant's Terraform, which is not the one that deploys its application — naming the wrong one costs a 403 at apply time and nothing earlier. `connects` may open a connection through the connector; `logs_in` may authenticate as an IAM database user. Nothing here lets a tenant change the instance."
   type = map(object({
-    deployer = string
+    declares = string
     connects = list(string)
     logs_in  = list(string)
   }))

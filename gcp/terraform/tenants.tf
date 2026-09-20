@@ -1,8 +1,8 @@
 /* WHAT A TENANT MAY DO INSIDE THIS INSTANCE, and nothing beyond it.
 
-   `cloudsql.editor` lets a tenant declare its own database and its own users.
-   It cannot delete the instance and cannot change its settings, which is the
-   boundary this repository exists to hold.
+   The role is the one written out in tenant_role.tf: it declares the tenant's
+   own database and its own users, and it cannot delete the instance or change
+   its settings, which is the boundary this repository exists to hold.
 
    THE CONNECT AND LOGIN GRANTS ARE HERE AND NOT IN THE TENANT because both are
    checked against the project that OWNS the instance. A tenant granting them
@@ -14,8 +14,8 @@ resource "google_project_iam_member" "tenant_deployers" {
   for_each = var.tenants
 
   project = var.project_id
-  role    = "roles/cloudsql.editor"
-  member  = "serviceAccount:${each.value.deployer}"
+  role    = google_project_iam_custom_role.tenant.name
+  member  = "serviceAccount:${each.value.declares}"
 }
 
 # `cloudsql.client` opens a connection through the connector.

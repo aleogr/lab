@@ -32,9 +32,9 @@ versioned: a truncated state write has to be recoverable.
 identity that applies it has to exist already — so `deployer.tf` was applied
 once from the commit that held it alone, by the project's owner.
 
-**Three grants to the deploy identity.** Terraform manages the pool, the
-service account and the state, and needs permission on all three before it can
-read them:
+**Four grants to the deploy identity.** Terraform manages the pool, the service
+account, the tenant role and the state, and needs permission on all of them
+before it can read or write them:
 
 ```sh
 PROJECT=aleogr-lab-shared-dacd
@@ -48,17 +48,20 @@ gcloud projects add-iam-policy-binding "$PROJECT" \
 
 gcloud projects add-iam-policy-binding "$PROJECT" \
   --member="$SA" --role=roles/iam.serviceAccountAdmin --condition=None
+
+gcloud projects add-iam-policy-binding "$PROJECT" \
+  --member="$SA" --role=roles/iam.roleAdmin --condition=None
 ```
 
-The last two are also declared in `deployer.tf`, and the first deliberately is
+The last three are also declared in `deployer.tf`, and the first deliberately is
 not: a `google_storage_bucket_iam_member` would have Terraform managing the
 access it needs in order to run, so a `terraform destroy` would revoke its own
 reach to the state halfway through its own execution.
 
-### The blind spot these three came from
+### The blind spot these grants came from
 
-All three were discovered by a red check, one at a time, and the reason is
-worth writing down. **The bootstrap plan runs as the project's owner, who can
+Every one of them was discovered by a red check, one at a time, and the reason
+is worth writing down. **The bootstrap plan runs as the project's owner, who can
 read everything.** Any permission the deploy identity needs and the owner
 already has is invisible there. The first plan run *as* the deploy identity is
 the first honest one.
