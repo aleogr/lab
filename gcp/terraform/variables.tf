@@ -28,6 +28,10 @@ variable "database_disk_limit" {
 }
 
 variable "tenants" {
-  description = "The deployer service accounts allowed to declare a database inside this instance. One entry per tenant repository."
-  type        = map(string)
+  description = "Each project that keeps a database in this instance, and the identities it reaches it with. `deployer` declares the tenant's own database and users; `connects` may open a connection through the connector; `logs_in` may authenticate as an IAM database user. Nothing here lets a tenant change the instance."
+  type = map(object({
+    deployer = string
+    connects = list(string)
+    logs_in  = list(string)
+  }))
 }
