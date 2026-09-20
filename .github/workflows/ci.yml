@@ -8,10 +8,12 @@ on:
   push:
     branches: [main]
 
+# Only what the workflow uses. `pull-requests: write` would be a grant with
+# no reader — nothing here comments on a pull request — in the one repository
+# whose compromise can change a GCP project.
 permissions:
   contents: read
   id-token: write
-  pull-requests: write
 
 jobs:
   # ONE JOB PER PROVIDER, and the directory is the boundary. A second provider

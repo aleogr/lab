@@ -42,6 +42,7 @@ check settings.backupConfiguration.startTime '"12:00"'
 check settings.backupConfiguration.pointInTimeRecoveryEnabled 'true'
 check settings.backupConfiguration.transactionLogRetentionDays '7'
 check settings.backupConfiguration.backupRetentionSettings.retainedBackups '7'
+check settings.backupConfiguration.backupRetentionSettings.retentionUnit '"COUNT"'
 check settings.ipConfiguration.ipv4Enabled 'true'
 check settings.ipConfiguration.sslMode '"ENCRYPTED_ONLY"'
 
