@@ -63,6 +63,17 @@ resource "google_project_iam_member" "deployer_workload_identity" {
   role    = "roles/iam.workloadIdentityPoolAdmin"
   member  = "serviceAccount:${google_service_account.deployer.email}"
 }
+
+# AND THE CUSTOM ROLE A TENANT IS GRANTED. `projectIamAdmin` says who may hold
+# a role; it holds no `iam.roles.*` permission at all, so it cannot create the
+# role itself. This one is granted by hand once for the same reason as the
+# binding above: applying it and then using it in the same run races the few
+# minutes IAM takes to propagate.
+resource "google_project_iam_member" "deployer_roles" {
+  project = var.project_id
+  role    = "roles/iam.roleAdmin"
+  member  = "serviceAccount:${google_service_account.deployer.email}"
+}
 data "google_project" "current" {
   project_id = var.project_id
 }
