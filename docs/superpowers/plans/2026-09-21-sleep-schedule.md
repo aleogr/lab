@@ -44,7 +44,7 @@
 |---|---|
 | `gcp/terraform/sleeper.tf` (create) | the identity that may start and stop the instance, and the custom role that says what that means |
 | `gcp/terraform/sleep.tf` (create) | the two Cloud Scheduler jobs — the schedule itself |
-| `gcp/terraform/instance.tf` (modify) | one comment recording that `activation_policy` is absent on purpose |
+| `gcp/terraform/instance.tf` (modify) | a `lifecycle` block that has Terraform ignore `activation_policy`, since leaving the field absent let the provider fill it with `ALWAYS` and fight the schedule |
 | `gcp/tools/check-schedule.sh` (create) | asks the live project whether the schedule matches the design |
 | `.github/workflows/ci.yml` (modify) | runs that check after the apply, like the two checks already there |
 | `docs/lab.md` (modify) | states the policy and names the file the expressions live in |
