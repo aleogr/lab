@@ -404,6 +404,22 @@ The region is an argument rather than a default because Cloud Scheduler is a reg
   why Step 4 below originally quoted an "Expected" line that never shipped —
   corrected there.
 
+  **A fourth difference, later than the other three and later than this
+  record was last written:** `cb0248f` replaced the extra-job scan's
+  `endswith` match — the one lines 392-393 above still describe as what
+  shipped in `65b632a` — with the boundary `test(...)` the live file now
+  carries. `endswith`, anchored on the project too, still rejected
+  `-replica`, but it also rejected every legitimate suffix: a query string, a
+  trailing slash, a sub-path — so a rogue job reached through any of those
+  forms passed uncaught. The boundary regex accepts anything that starts a
+  new path segment, a query string, a fragment, or (added in the re-review
+  that found this paragraph itself stale) GCP's own custom-verb separator or
+  a statement separator, while `-replica` still cannot match any of them.
+  Lines 392-393 are left describing `endswith`, deliberately, because that is
+  what `65b632a` shipped and this is a draft-to-shipped record of that
+  commit; `cb0248f` is a later commit correcting the shipped script further,
+  not a correction of what this paragraph says `65b632a` did.
+
 Create `gcp/tools/check-schedule.sh`, `chmod +x`:
 
 ```sh
@@ -584,7 +600,7 @@ git commit -m "Ask the live project whether the schedule is the designed one"
   exactly two places on purpose, name both, and say that changing the window
   means changing both.
 
-The division the spec settles: this file carries the **policy**, `sleep.tf` carries the **expressions**, and a cron appears exactly once in the repository. Keep the two consequences that follow the section — the backup window and the missing transaction log — untouched; both are still true and neither depends on this change.
+The division the spec settles: this file carries the **policy**, `sleep.tf` carries the **expressions**. **This is the note that found the contradiction fixed above, and this sentence is what it was contradicting:** the paragraph two steps above already says a later commit rewrote this section to say the expressions live in two operative places on purpose, naming both; the instruction below has to match that, not the disproven "appears nowhere else" claim it replaced. Keep the two consequences that follow the section — the backup window and the missing transaction log — untouched; both are still true and neither depends on this change.
 
 Replace the opening paragraph — the one beginning "**Not yet — the instance runs continuously today.**" — with this:
 
@@ -600,9 +616,14 @@ answer the moment it is asked to: measured on 2026-09-21, it took 686 seconds
 — eleven and a half minutes — from the start command to `/health` reporting
 `database: ok`.
 
-`gcp/terraform/sleep.tf` holds the two cron expressions, and they appear
-nowhere else in this repository — this section is the policy, that file is the
-schedule.
+The two cron expressions live in two operative places that must be kept in
+step, on purpose, outside the design documents that quote them for
+reference: `gcp/terraform/sleep.tf`, the schedule itself, and the
+`check-schedule.sh` invocation in `.github/workflows/ci.yml`, which is what
+that script is told to expect. The second copy is not drift — it exists
+because a check must not read its expectation from the thing it is checking.
+**Changing the window means changing both operative places**, `sleep.tf` and
+the arguments in `ci.yml`.
 
 **A tenant whose own work runs at night moves it, in its own repository.**
 This project does not reach into a tenant's Cloud Scheduler for the same
@@ -662,12 +683,34 @@ quoted content could stay current forever, which nothing can.
     of what was true on the date in the filename. The rule as written let a
     line that will go stale the moment `aleogr/lab` merges pass as though it
     were dated history. Narrowed below.
+  - **This design's own status line and opening paragraph (found in
+    re-review, after this step shipped).** `grep` matches line by line, and
+    this document's own opening wrapped the phrase across a line break — "...
+    now says, correctly, that it is not in\neffect." — with "not in" ending
+    one line and "effect." starting the next. The pattern
+    `"not in effect"` cannot match text no single line contains, so this
+    sweep walked past the exact sentence its own prose most needed to catch,
+    in the file it was written in. Line-wrapped prose is invisible to a
+    line-by-line grep on principle, not by bad luck here, and nothing about
+    C2 or C3's fixes touches that. Fixed below by joining each file's lines
+    before matching, so a phrase wrapped by hand cannot hide from a pattern
+    written on one line.
 
 ```sh
 grep -rn -iE "not in effect|runs continuously|four weeknight|22:00|07:30" \
   --include='*.md' --include='*.tf' --include='*.html' . \
   | grep -v '^./.superpowers'
+
+# THE PASS ABOVE IS LINE-BY-LINE AND MISSES A PHRASE WRAPPED ACROSS A LINE
+# BREAK, which is exactly how this design's own opening paragraph hid from
+# it once. Join each file's lines into one before matching, so wrapping
+# cannot hide a phrase from a pattern that names it whole.
+grep -rlZ --include='*.md' --include='*.tf' --include='*.html' -e . . \
+  | grep -vz '^./.superpowers' \
+  | xargs -0 -I{} sh -c 'tr "\n" " " < "{}" | grep -inE -o ".{0,40}(not in effect|runs continuously|four weeknight).{0,40}" && echo "  in: {}"'
+
 git show site:index.html | grep -n -iE "not in effect|runs continuously|four weeknight|22:00|07:4|07:3"
+git show site:index.html | tr '\n' ' ' | grep -inE -o ".{0,40}(not in effect|runs continuously|four weeknight).{0,40}"
 ```
 
 Every working-tree hit must either be the new prose, the expressions in
@@ -871,13 +914,28 @@ git commit -m "Say why an apply failed when the instance is asleep"
 
 **Files:** none.
 
-- [x] **Step 1: Push both branches** — done. `claude/funny-wright-379asb-labwindow`
-  is on `origin` at `cf6a25e`; `claude/lab-sleep` is on `origin` at `36e2989`
-  (`git ls-remote origin` confirms both, matching the local commit each
-  branch was at before this fix wave's own commits). Neither the `site`
-  branch nor this fix wave's new commits are pushed — publishing `site` is
-  the owner's act (C2), and no pull request exists yet for either branch to
-  receive a push into.
+- [x] **Step 1: Push both branches** — done, and **this record was stale**:
+  it said both branches sat at their pre-fix-wave SHAs, that this wave's own
+  commits were not pushed, and that no pull request existed for either. All
+  three were false by the time of the re-review that corrects this
+  paragraph, checked directly against GitHub rather than assumed:
+  `claude/funny-wright-379asb-labwindow` is on `origin` at `7b05592`;
+  `claude/lab-sleep` is on `origin` at `8c61cba` — both include this fix
+  wave's own commits, already pushed.
+
+  **A pull request exists for each, and their histories diverged.**
+  `aleogr/marketplace#67` carries all six of that repository's commits —
+  Tasks 6 and 7's four (`faed8f4`, `043ae57`, `cf6a25e`, `d4776ca`) plus this
+  wave's two (`e59383f`, `7b05592`) — and is **merged**, its head at exactly
+  `7b05592`, every check green. `aleogr/lab#10` **merged earlier**, at
+  `36e2989`, which is *before* this wave's four commits on `claude/lab-sleep`
+  (`149ee99`, `c5cd7ba`, `cb0248f`, `8c61cba`) existed — so those four are
+  pushed to `origin` and sit on the branch, but are not part of `#10` or of
+  any other pull request, open or closed. A pull request built on this
+  session's own further changes to `claude/lab-sleep` would need to be a new
+  one; `#10` cannot receive them by re-opening. Neither the `site` branch nor
+  its own pull request status changed; publishing `site` is still the
+  owner's act (C2).
 
 ```bash
 git -C <marketplace> push -u origin claude/funny-wright-379asb-labwindow
