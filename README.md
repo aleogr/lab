@@ -23,6 +23,11 @@ deliberate: whoever looks after the house is the house; whoever looks after a
 room is whoever lives in it. A tenant cannot change the instance, and this
 repository cannot change a tenant's data.
 
+## The rules of the laboratory
+
+`docs/lab.md` — what may be shared, how things are named, when the instance is
+awake, and what a project may do inside it.
+
 ## What was done by hand, and why it is not in the configuration
 
 Four things exist because somebody typed a command. Each is here with the
@@ -84,6 +89,5 @@ after a grant can still be refused; that is not a second missing permission.
 **Consolidate by environment, never across environments.** Every database in
 this instance holds a lab. The day one of them becomes production it leaves.
 
-See `docs/superpowers/specs/2026-09-20-shared-database-instance-design.md` in
-`aleogr/marketplace` for why, including what this arrangement does *not*
-protect against.
+See `docs/superpowers/specs/2026-09-20-shared-database-instance-design.md` for
+why, including what this arrangement does *not* protect against.
