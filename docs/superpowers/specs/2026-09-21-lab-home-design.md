@@ -1,7 +1,7 @@
 # The lab has a home
 
 **Date:** 2026-09-21
-**Status:** agreed, not yet implemented
+**Status:** implemented; the page is public at `https://lab.aleogr.dev` (2026-09-21)
 
 `lab.aleogr.dev` is the address every laboratory project already lives under —
 `marketplace.lab.aleogr.dev`, `code.schooling.lab.aleogr.dev`,
@@ -165,8 +165,9 @@ failure cries wolf; one that calls it success hides a fire. The third state is
 what prevents both lies, and it is what makes the panel worth looking at in six
 months.
 
-The case that will occur every weeknight: from 22:00 to 08:00 the instance
-sleeps, Cloud Run keeps serving, and `/health` answers **503 with
+The case that will occur Monday through Thursday nights, once Plan 2's
+schedule is in effect: from 22:00 to 07:45 the instance sleeps, Cloud Run
+keeps serving, and `/health` answers **503 with
 `"database":"unreachable"`**. The page shows what `/health` said, and shows the
 working window beside it so the reading takes one glance. It does **not** assert
 that the instance is asleep. It does not know that; it knows what the service
@@ -204,9 +205,9 @@ addresses and the site serves. A CNAME is also what GitHub documents for a
 earlier reasoning had reached for the record GitHub recommends for the wrong
 shape of name.
 
-The zone is on Cloudflare and every one of its 27 records is **DNS only**, with
-no proxying — which is what lets GitHub issue its certificate. Nothing in the
-zone's posture had to change to add the CNAME.
+The zone is on Cloudflare, and the `lab` CNAME is unproxied — which is what
+lets GitHub issue its certificate. Nothing in the zone's posture had to
+change to add it.
 
 **A records to GitHub's published addresses remain the fallback** if the CNAME
 ever has to go — read from GitHub's documentation at the moment of applying,

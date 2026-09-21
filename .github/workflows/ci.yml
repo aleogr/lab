@@ -8,12 +8,8 @@ on:
   push:
     branches: [main]
 
-# Only what the workflow uses. `pull-requests: write` would be a grant with
-# no reader — nothing here comments on a pull request — in the one repository
-# whose compromise can change a GCP project.
-permissions:
-  contents: read
-  id-token: write
+# Deny by default at the workflow level; each job asks for what it uses.
+permissions: {}
 
 jobs:
   # ONE JOB PER PROVIDER, and the directory is the boundary. A second provider
@@ -23,6 +19,16 @@ jobs:
   gcp:
     name: GCP — format, validate, plan and apply
     runs-on: ubuntu-latest
+
+    # Only what this job uses, and scoped to the job rather than the workflow:
+    # `pull-requests: write` would be a grant with no reader — nothing here
+    # comments on a pull request — and a workflow-level grant is inherited by
+    # every job a future session adds, without anyone reviewing that decision.
+    # This is the one job today and the one that needs it; a second job would
+    # need its own permissions block to get either.
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - uses: actions/checkout@v7

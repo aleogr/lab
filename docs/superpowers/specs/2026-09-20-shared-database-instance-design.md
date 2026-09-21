@@ -1,13 +1,19 @@
 # One database instance for both labs, asleep at night
 
-Status: approved, not yet implemented. 2026-09-20.
+Status, 2026-09-21: Phase 1 is implemented — the `marketplace` database, its
+roles, grants and connection ceiling are live on `lab-postgres`. `schooling`
+has not moved and the sleep schedule below is not in effect; both remain
+Plan 2.
 
 This design covers two changes made together because they interact: moving the
 lab databases of `marketplace` and `schooling` onto one shared Cloud SQL
-instance, and stopping that instance outside working hours.
+instance, and putting that instance to sleep on four weeknights.
 
-The decisions that survive implementation belong in `docs/infrastructure.md`;
-this file is the record of how they were reached, and is written once.
+The decisions that survive implementation belong in `docs/infrastructure.md`
+in `aleogr/marketplace`; this file is the record of how they were reached,
+and its reasoning is written once. The status line above and the applied-value
+note below it are the exceptions: they say what the world has since done,
+not why.
 
 `schooling` lives in another repository (`codeschool-ing/schooling`) and is not
 this session's to write. Everything below that touches it is described so that
@@ -77,9 +83,9 @@ activation policy — is proven with `marketplace` first. The rows that matter
 travel a path that has already been walked.
 
 **D6. Move the instance first; split `schooling`'s roles later.** Its owner
-intends to adopt the migrator/service separation this repository uses. Doing
-both at once means a failure could be either, with no way to tell which. The
-move happens with its current permission model untouched.
+intends to adopt the migrator/service separation `aleogr/marketplace` uses.
+Doing both at once means a failure could be either, with no way to tell
+which. The move happens with its current permission model untouched.
 
 **D7. The old instances are stopped, not deleted, for a week.** Stopped, each
 costs only its disk — about R$ 10. Twenty reais buys a rollback that works, and
@@ -137,9 +143,9 @@ by `schooling`, so ownership moves with `REASSIGN OWNED BY schooling TO
 schooling_migrator`. And it is `schooling_migrator` that becomes the built-in
 user created by `gcloud sql users create` — the one with the privilege to
 create and drop tables — while `schooling` becomes a plain role holding
-`SELECT, INSERT, UPDATE, DELETE` and nothing more. That is the same shape this
-repository uses, and the reason is the same: a service that cannot drop a table
-is a service whose compromise has a ceiling.
+`SELECT, INSERT, UPDATE, DELETE` and nothing more. That is the same shape
+`aleogr/marketplace` uses, and the reason is the same: a service that cannot
+drop a table is a service whose compromise has a ceiling.
 
 ## The instance
 
@@ -175,12 +181,16 @@ ALTER DATABASE marketplace CONNECTION LIMIT 10;
 ALTER DATABASE schooling   CONNECTION LIMIT 10;
 ```
 
+The `marketplace` ceiling above is what was planned; what was applied is
+**14** — see the arithmetic in `docs/infrastructure.md` in `aleogr/marketplace`.
+`schooling`'s `10` is still the plan.
+
 When the split lands, `schooling_migrator` joins the `GRANT CONNECT` for the
 `schooling` database.
 
-The connection limits are what keep a burst from this repository's CI from
-leaving `schooling` unable to connect — the 0.6 GB of shared RAM answered by
-configuration rather than by a larger tier. Subject to D8.
+The connection limits are what keep a burst from `aleogr/marketplace`'s CI
+from leaving `schooling` unable to connect — the 0.6 GB of shared RAM answered
+by configuration rather than by a larger tier. Subject to D8.
 
 ## The sleep schedule
 
@@ -210,10 +220,10 @@ About 39 hours asleep a week. 557 awake hours a month × R$ 0.0614 + R$ 10.11 of
 | what | today, local | whose | becomes |
 |---|---|---|---|
 | `schooling` automated backup | 04:00 | theirs | 12:00 UTC |
-| `marketplace` automated backup | 03:00 | ours | 12:00 UTC |
+| `marketplace` automated backup | 03:00 | marketplace's | 12:00 UTC |
 | `schooling-analyse-nightly` | 03:10 | theirs | 08:10 |
 | `schooling-settle-nightly` | 03:40 | theirs | 08:40 |
-| `verify-audit-chain` | 01:17 | ours | 12:17 UTC |
+| `verify-audit-chain` | 01:17 | marketplace's | 12:17 UTC |
 
 There is no transaction log for the hours an instance was stopped, so the
 `schooling` restore drill must target a moment the instance was awake. That
@@ -241,10 +251,11 @@ few days.
 ### Phase 1 — rehearse with `marketplace`
 
 Create the `marketplace` database, `marketplace_migrator`, the IAM user for the
-service account, the grants and the connection limits. Point this repository's
-`DATABASE_INSTANCE` and `DATABASE_NAME` at the new instance. The deployment
-does the rest: the migration job builds the schema, seeds the marketplaces and
-writes their audit records, and `make e2e-lab` says whether it worked.
+service account, the grants and the connection limits. Point
+`aleogr/marketplace`'s `DATABASE_INSTANCE` and `DATABASE_NAME` at the new
+instance. The deployment does the rest: the migration job builds the schema,
+seeds the marketplaces and writes their audit records, and `make e2e-lab`
+says whether it worked.
 
 If anything is wrong, one variable goes back and the old lab serves again. No
 data is at risk and the whole path is proven.
