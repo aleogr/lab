@@ -14,6 +14,10 @@ is the marketplace's, because its own pool is what sets the number.
 Without that rule, "it belongs to the lab" becomes the answer for anything
 nobody knows where to put.
 
+The index page lives on its own orphan branch, `site` — `index.html`, `CNAME`
+and `.nojekyll`, nothing else. GitHub Pages serves it directly from that
+branch; it never merges into `main`, and `main` never merges into it.
+
 ## What this does not own
 
 **Any tenant's database, roles or grants.** Those are declared by the tenant,
