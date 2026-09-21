@@ -82,3 +82,11 @@ jobs:
       - name: The instance matches the design
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: ./gcp/tools/check-instance.sh "${{ vars.GCP_PROJECT_ID }}" lab-postgres
+
+      # The same reason as the step above: the condition that matters is the one
+      # the live provider holds, not the one the files describe.
+      - name: The federation matches the design
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          ./gcp/tools/check-federation.sh "${{ vars.GCP_PROJECT_ID }}" \
+            aleogr/shared-infra aleogr/lab

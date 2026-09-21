@@ -1,3 +1,17 @@
+# THE REPOSITORIES THIS PROJECT TRUSTS, in the one list that says so.
+#
+# Two names is a transient state, not the design. The condition is widened
+# here, the repository is renamed on GitHub, and the old name is removed
+# afterwards (docs/superpowers/specs/2026-09-21-lab-home-design.md, D3). The
+# order is not a preference: a CI run that cannot authenticate cannot apply the
+# fix for not being able to authenticate.
+locals {
+  federated_repositories = [
+    "aleogr/shared-infra",
+    "aleogr/lab",
+  ]
+}
+
 # The identity CI acts as, and it holds no key. GitHub mints a token, the
 # federation exchanges it for a short-lived credential, and nothing long-lived
 # exists to leak.
@@ -23,7 +37,10 @@ resource "google_iam_workload_identity_pool_provider" "github" {
 
   # WITHOUT THIS, ANY REPOSITORY ON GITHUB CAN ASK. The condition is what makes
   # the federation an authorisation rather than an introduction.
-  attribute_condition = "assertion.repository == 'aleogr/shared-infra'"
+  attribute_condition = join(" || ", [
+    for repository in local.federated_repositories :
+    "assertion.repository == '${repository}'"
+  ])
 
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
@@ -31,9 +48,20 @@ resource "google_iam_workload_identity_pool_provider" "github" {
 }
 
 resource "google_service_account_iam_member" "deployer_federation" {
+  for_each = toset(local.federated_repositories)
+
   service_account_id = google_service_account.deployer.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github.workload_identity_pool_id}/attribute.repository/aleogr/shared-infra"
+  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github.workload_identity_pool_id}/attribute.repository/${each.value}"
+}
+
+# ONE RESOURCE BECAME ONE PER REPOSITORY, and without this Terraform would
+# destroy the binding CI authenticates with and create it again in the same
+# apply. An apply that failed between those two steps would leave CI unable to
+# authenticate, with no way in to repair it.
+moved {
+  from = google_service_account_iam_member.deployer_federation
+  to   = google_service_account_iam_member.deployer_federation["aleogr/shared-infra"]
 }
 
 resource "google_project_iam_member" "deployer_sql" {
