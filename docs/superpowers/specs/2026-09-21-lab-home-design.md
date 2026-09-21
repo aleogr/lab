@@ -245,7 +245,7 @@ inconsistencies.
 | 1 | widen the federation to accept both names | pull request in `shared-infra` | CI |
 | 2 | rename the repository | GitHub | the owner |
 | 3 | narrow the federation, remove the old binding, rewrite README and comments | pull request in `lab` | CI |
-| 4 | the page: the `site` branch, `CNAME`, Pages, A records, domain verification | pull request in `lab` + Cloudflare | CI and the owner |
+| 4 | the page: the `site` branch, the `CNAME` file, Pages, the DNS `CNAME` record, domain verification | pull request in `lab` + Cloudflare | CI and the owner |
 | 5 | the laboratory's rules move in; the earlier spec moves in (D11) | pull requests in `lab` and `marketplace` | CI |
 | — | CORS on `/health` | a pull request per tenant | CI |
 
@@ -281,10 +281,13 @@ reading of the live world, never the file that states the intent.**
 
 ## Risks
 
-**A records for a subdomain on GitHub Pages.** GitHub documents CNAME for
-subdomains and A records for an apex. A records do serve, but this is verified
-against the documentation at apply time (D9), with the Cloudflare fallback held
-in reserve.
+**A CNAME sharing its name with another record.** GitHub's documented path for
+a subdomain is a CNAME, and that is what serves `lab.aleogr.dev` now (D9). The
+general DNS rule says a CNAME must be the only record at its name; Cloudflare
+does not enforce that here, so the Brevo TXT and the CNAME coexist at the same
+name. That is this provider's behaviour, not a documented standard, so a
+different provider might refuse it — A records to GitHub's published
+addresses are the reserved fallback if it ever does.
 
 **Certificate issuance** depends on DNS having propagated and on the record
 staying unproxied, which it is. Usually minutes; it can be hours.
