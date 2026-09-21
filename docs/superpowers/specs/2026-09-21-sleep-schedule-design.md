@@ -71,20 +71,72 @@ during the window, so a morning where the instance did not come back is visible
 in the same place, in the same way — which is worth more than an alert nobody
 configured.
 
-## D2 — `activation_policy` is deliberately absent from `instance.tf`
+## D2 — `activation_policy` is ignored, not merely absent, in `instance.tf`
 
-`google_sql_database_instance.shared` does not declare
-`settings.activation_policy`, and that is now a decision rather than an
-accident.
+`google_sql_database_instance.shared` never names `settings.activation_policy`.
+`sleep.tf` is the only thing that changes it, and Terraform is told to leave it
+alone with a `lifecycle { ignore_changes = [settings[0].activation_policy] }`
+block on the resource — not, as this design first assumed, by simply leaving
+the line out.
 
-CI applies this repository's Terraform on every merge to `main`. If the
-configuration named `ALWAYS`, a merge at 23:00 would wake the instance and the
-schedule would lose to Terraform every time somebody shipped a documentation
-fix. Leaving the field out makes the running state the only authority on
-whether the instance is awake, which is what a schedule needs.
+CI applies this repository's Terraform on every merge to `main`, and if the
+running state and Terraform's idea of the state disagree, the apply is what
+wins. That much was always the reasoning; it did not change. What changed is
+the mechanism, because the first one was wrong.
 
-The field gets a comment saying so. A future reader who "completes" the
-settings block by adding it would silently disable the schedule.
+**The estimate this design first made: that omitting the field would be
+enough.** It is recorded here rather than quietly replaced, the same way the
+2026-09-20 design's wake-up estimate is recorded next to the measurement that
+corrected it — a design that shows only its corrected conclusions teaches
+nobody.
+
+Task 3 shipped `instance.tf` with `activation_policy` left out of the
+`settings` block and a comment asserting that an absent field is an unmanaged
+one. It is not. Checked directly against provider 8.3.0's own schema
+(`terraform providers schema -json`): unlike `edition` and `disk_type` in the
+same block, which are `optional: true, computed: true`, `activation_policy` is
+`optional: true` with no `computed` key at all — Optional but not Computed.
+Reproduced directly, not merely inferred from the schema: a `terraform plan`
+run against a hand-built state whose `settings.activation_policy` was `NEVER`
+— an instance stopped for the night — with the field still absent from
+config, proposed
+
+```
+~ activation_policy = "NEVER" -> "ALWAYS"
+```
+
+as an in-place update, every time, regardless of the prior state. The provider
+fills an absent value in with `ALWAYS` rather than leaving it alone. Had this
+shipped unchanged, the first CI apply landing inside the window — a
+documentation fix merged at 23:00 on a Tuesday is exactly the case D1
+worried about — would have woken the instance back up, and `check-instance.sh`
+would have shown green immediately afterwards, because it does not read this
+field. The schedule would have lost to Terraform in silence, four nights a
+week, and nothing in this repository would have said so.
+
+**The fix, verified the same way.** With the `lifecycle` block in place, the
+same reproduction — a plan against a state carrying `NEVER`, config unchanged
+— no longer proposes anything for `activation_policy`: the attribute drops out
+of the plan entirely, into the count of attributes Terraform reports as
+unchanged. This is the behaviour D2 always wanted; omission did not produce
+it, and `ignore_changes` does.
+
+**What this trades away.** With `ignore_changes`, Terraform does not manage
+this field in either direction, not only the direction that mattered here. An
+instance stopped by hand outside the schedule and then forgotten stays
+stopped; no apply corrects it. That is accepted rather than overlooked: the
+schedule in `sleep.tf` is what decides whether the instance is awake, and
+`gcp/tools/check-schedule.sh` (Task 4) is what verifies the schedule matches
+the design. Nothing in `instance.tf` verifies the instance's current state,
+and nothing there was ever meant to.
+
+`ignore_changes` only governs updates to a resource Terraform already manages,
+not its creation — irrelevant here, since `google_sql_database_instance.shared`
+already exists and is already in state. Nothing else in this repository's
+Terraform reads or depends on Terraform's own idea of the instance's current
+`activation_policy`: `sleep.tf`'s two jobs send a constant body to the Cloud
+SQL Admin API and never read state, and `check-instance.sh` does not assert on
+this field either.
 
 ## D3 — The sleeper has its own role, and it can do more than sleep
 
@@ -208,6 +260,15 @@ is where the check belongs anyway.
 
 It also settles `attempt_deadline`: the job does not wait out the operation, so
 320 seconds is generous rather than tight.
+
+**That this project's Cloud Scheduler needs no App Engine application.**
+Current documentation says it does not: an HTTP target, as both jobs in
+`sleep.tf` use, is independent of App Engine — only the separate
+`app_engine_http_target` type carries that requirement, and `us-central1` is a
+supported Cloud Scheduler region for HTTP targets. `services.tf` enables
+`cloudscheduler.googleapis.com` and nothing enables App Engine, which is
+consistent with that reading. It is documentation, not a live project, so the
+first apply is what actually settles it.
 
 ## What was verified
 

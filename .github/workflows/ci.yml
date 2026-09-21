@@ -94,3 +94,13 @@ jobs:
       - name: The federation matches the design
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: ./gcp/tools/check-federation.sh "${{ vars.GCP_PROJECT_ID }}" aleogr/lab
+
+      # The third of the three: the instance's shape, who may authenticate,
+      # and now when it is awake. Same reason as the two above — the schedule
+      # that matters is the one Cloud Scheduler holds, not the one the files
+      # describe.
+      - name: The schedule matches the design
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          ./gcp/tools/check-schedule.sh "${{ vars.GCP_PROJECT_ID }}" us-central1 \
+            lab-postgres "0 22 * * 1-4" "30 7 * * 2-5" America/Sao_Paulo

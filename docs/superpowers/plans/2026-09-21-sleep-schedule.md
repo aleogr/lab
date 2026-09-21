@@ -44,7 +44,7 @@
 |---|---|
 | `gcp/terraform/sleeper.tf` (create) | the identity that may start and stop the instance, and the custom role that says what that means |
 | `gcp/terraform/sleep.tf` (create) | the two Cloud Scheduler jobs — the schedule itself |
-| `gcp/terraform/instance.tf` (modify) | one comment recording that `activation_policy` is absent on purpose |
+| `gcp/terraform/instance.tf` (modify) | a `lifecycle` block that has Terraform ignore `activation_policy`, since leaving the field absent let the provider fill it with `ALWAYS` and fight the schedule |
 | `gcp/tools/check-schedule.sh` (create) | asks the live project whether the schedule matches the design |
 | `.github/workflows/ci.yml` (modify) | runs that check after the apply, like the two checks already there |
 | `docs/lab.md` (modify) | states the policy and names the file the expressions live in |
@@ -116,7 +116,7 @@ success is not a database that answers.
 
 ---
 
-## Task 2: The identity that may start and stop the instance
+## Task 2: The identity that may start and stop the instance — DONE, `43dd680`
 
 **Files:**
 - Create: `gcp/terraform/sleeper.tf`
@@ -126,7 +126,10 @@ success is not a database that answers.
 - Consumes: `var.project_id` (declared in `gcp/terraform/variables.tf`), `google_project_service.enabled` (declared in `gcp/terraform/services.tf`).
 - Produces: `google_service_account.sleeper` with attribute `.email`, used by Task 3's two `oauth_token` blocks.
 
-- [ ] **Step 1: Write the file**
+- [x] **Step 1: Write the file** — done, `43dd680`. The shipped file's comments
+  are worded differently from the draft below (refined while writing it — see
+  the commit message), but the three resources, the role id, the permissions
+  and the account id match this step exactly.
 
 Create `gcp/terraform/sleeper.tf`:
 
@@ -172,7 +175,10 @@ resource "google_project_iam_member" "sleeper" {
 }
 ```
 
-- [ ] **Step 2: Check it is well-formed**
+- [x] **Step 2: Check it is well-formed** — done. `fmt -check -recursive` and
+  `validate` both pass at `43dd680` (re-run against that commit directly to
+  confirm, rather than trusted from the diff): `fmt` silent, `validate` prints
+  `Success! The configuration is valid.`
 
 ```sh
 terraform -chdir=gcp/terraform fmt -check -recursive
@@ -182,7 +188,7 @@ terraform -chdir=gcp/terraform validate
 
 Expected: `fmt` silent, `validate` prints `Success! The configuration is valid.`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit** — `43dd680`, "Give the schedule an identity of its own".
 
 ```bash
 git add gcp/terraform/sleeper.tf
@@ -191,11 +197,11 @@ git commit -m "Give the schedule an identity of its own"
 
 ---
 
-## Task 3: The schedule
+## Task 3: The schedule — DONE, `82c64fa`, Step 3 corrected in `ebb2017`
 
 **Files:**
 - Create: `gcp/terraform/sleep.tf`
-- Modify: `gcp/terraform/instance.tf` — the `settings` block, adding a comment where `activation_policy` is not
+- Modify: `gcp/terraform/instance.tf` — a `lifecycle { ignore_changes = [...] }` block on `google_sql_database_instance.shared`, telling Terraform not to manage `activation_policy` (corrected in `ebb2017` from the comment-only approach this line first described)
 - Test: `terraform validate`; the live proof is Task 4's check and the apply on `main`.
 
 **Interfaces:**
@@ -204,7 +210,7 @@ git commit -m "Give the schedule an identity of its own"
 
 **Task 1 moved the start from 07:45 to 07:30. `30 7 * * 2-5` below is that decision; it is not the figure the 2026-09-20 design was written with.**
 
-- [ ] **Step 1: Write the schedule**
+- [x] **Step 1: Write the schedule** — done, `82c64fa`, matching the block below.
 
 Create `gcp/terraform/sleep.tf`:
 
@@ -290,7 +296,7 @@ resource "google_cloud_scheduler_job" "start" {
 }
 ```
 
-- [ ] **Step 2: Correct the hour the backup comment names**
+- [x] **Step 2: Correct the hour the backup comment names** — done, `82c64fa`.
 
 `gcp/terraform/instance.tf` line 40 says the instance is stopped "from 22:00 to
 07:45 local on Monday, Tuesday, Wednesday and Thursday nights". Task 1 moved
@@ -298,20 +304,38 @@ the start. Change 07:45 to 07:30 and leave the rest of that comment alone — it
 argument, that a backup window in the small hours would silently stop producing
 backups, does not depend on the minute.
 
-- [ ] **Step 3: Record why `activation_policy` is not in `instance.tf`**
+- [x] **Step 3: Make Terraform ignore `activation_policy`, and say why** — done,
+  corrected in `ebb2017` after the comment-only approach shipped in `82c64fa`
+  turned out not to work. The paragraph below already narrates that
+  correction; nothing further to reconcile.
 
-In `gcp/terraform/instance.tf`, inside the `settings` block, immediately after the `deletion_protection_enabled` line, add:
+**This step was revised after it first shipped.** The original instruction
+here was to leave `activation_policy` out of the `settings` block and add a
+comment saying the omission was deliberate. That shipped, and it does not do
+what it was written to do: `activation_policy` is Optional but not Computed in
+provider 8.3.0's own schema (`terraform providers schema -json`), unlike
+`edition` and `disk_type` beside it, and a plan run against a state carrying
+`NEVER` — the instance stopped for the night — proposed `NEVER -> ALWAYS` as
+an in-place update, with the field still absent from config. Omitting the
+field is not the same as telling Terraform to ignore it. D2 in the design
+records this in full; this step now matches what D2 actually specifies.
 
-```hcl
-    # `activation_policy` IS ABSENT ON PURPOSE. It is the one setting this
-    # file does not own: `sleep.tf` changes it four times a week, and CI
-    # applies this configuration on every merge to main. A line here naming
-    # ALWAYS would wake the instance whenever somebody shipped a
-    # documentation fix, and the schedule would lose to Terraform every time.
-    # Completing this block by adding it would silently disable the schedule.
-```
+In `gcp/terraform/instance.tf`, on `google_sql_database_instance.shared`, add
+a `lifecycle { ignore_changes = [settings[0].activation_policy] }` block, with
+a comment above it carrying: that `sleep.tf` owns this field and nothing else
+does; that omission was tried first and does not work, with the schema finding
+and the reproduced plan that proves it; what an unpatched apply would have
+cost (CI applies on every merge to `main`, and `check-instance.sh` does not
+read this field, so a merge inside the window would have woken the instance
+in silence); and the trade `ignore_changes` accepts — Terraform manages this
+field in neither direction now, so an instance stopped by hand and forgotten
+stays stopped, which is deliberate because `check-schedule.sh` (Task 4) is
+what verifies the schedule, not this file.
 
-- [ ] **Step 4: Check it is well-formed**
+- [x] **Step 4: Check it is well-formed** — done. `fmt -check -recursive` and
+  `validate` both pass at `82c64fa` and again at `ebb2017` (checked out and
+  re-run against each directly): `fmt` silent, `validate` prints `Success! The
+  configuration is valid.`
 
 ```sh
 terraform -chdir=gcp/terraform fmt -check -recursive
@@ -321,7 +345,10 @@ terraform -chdir=gcp/terraform validate
 
 Expected: `fmt` silent, `validate` prints `Success! The configuration is valid.`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit** — `82c64fa`, "Declare when the instance sleeps". The
+  `activation_policy` fix that followed is its own commit, `ebb2017`, "Ignore
+  activation_policy instead of omitting it" — not this step's commit, since it
+  corrects what this step first shipped.
 
 ```bash
 git add gcp/terraform/sleep.tf gcp/terraform/instance.tf
@@ -330,7 +357,7 @@ git commit -m "Declare when the instance sleeps"
 
 ---
 
-## Task 4: A check that asks the live project
+## Task 4: A check that asks the live project — DONE, `65b632a`
 
 **Files:**
 - Create: `gcp/tools/check-schedule.sh`
@@ -345,7 +372,15 @@ The region is an argument rather than a default because Cloud Scheduler is a reg
 
 **Read `gcp/tools/check-federation.sh` before writing this.** It is the pattern: the expectation arrives as arguments so that the check and the thing checked cannot agree by construction, and a `remainder` clause fails when the live world carries something the check does not know about.
 
-- [ ] **Step 1: Write the check**
+- [x] **Step 1: Write the check** — done, `65b632a`, `chmod +x` set. The
+  shipped script is not byte-for-byte the draft below: exercising it against
+  fixtures found two bugs in the draft and fixed them before shipping — a
+  `// ""` default missing from the plain `schedule`/`timeZone`/`state`/`uri`
+  reads (so a job with those fields absent read as the literal string `"null"`
+  instead of empty), and the extra-job scan matching `endswith` rather than
+  `contains` on the instance URI (so `lab-postgres-replica` cannot be
+  misreported as targeting `lab-postgres`). Same checks, same argument
+  contract, same two job names.
 
 Create `gcp/tools/check-schedule.sh`, `chmod +x`:
 
@@ -433,7 +468,10 @@ fi
 echo "the schedule matches the design"
 ```
 
-- [ ] **Step 2: Check the shell is well-formed**
+- [x] **Step 2: Check the shell is well-formed** — done, only partly:
+  `bash -n gcp/tools/check-schedule.sh` passes (exit 0). `shellcheck` did not
+  run — it is installed in none of this session's sandboxes, exactly as this
+  step warns below, so this stays an unrun check rather than a passed one.
 
 ```sh
 bash -n gcp/tools/check-schedule.sh
@@ -442,7 +480,8 @@ shellcheck gcp/tools/check-schedule.sh   # if shellcheck exists in this sandbox
 
 `shellcheck` is installed in none of this session's sandboxes. If it is missing, say so in the pull request as an unrun check — never as a passed one.
 
-- [ ] **Step 3: Add the step to CI**
+- [x] **Step 3: Add the step to CI** — done, `65b632a`, matching the block
+  below exactly.
 
 In `.github/workflows/ci.yml`, after the "The federation matches the design" step, add:
 
@@ -458,11 +497,11 @@ In `.github/workflows/ci.yml`, after the "The federation matches the design" ste
             lab-postgres "0 22 * * 1-4" "30 7 * * 2-5" America/Sao_Paulo
 ```
 
-- [ ] **Step 4: Collect the red, before the merge**
+- [x] **Step 4: Collect the red, before the merge** — done, 2026-09-21.
 
-**This is a blocking step and it slipped last time.** The 2026-09-21 lab-home plan collected its red after the pull request had already merged, and the ledger records that the pre-apply moment was then gone for good. Do not repeat it.
+**This is a blocking step and it slipped last time.** The 2026-09-21 lab-home plan collected its red after the pull request had already merged, and the ledger records that the pre-apply moment was then gone for good. Do not repeat it. **This time the order is right: the owner ran the check below against the live project while `claude/lab-sleep` was still unmerged and the schedule did not yet exist**, before this pull request opens — not after.
 
-Give the owner this, to run in Cloud Shell while the pull request is open and the schedule does not yet exist:
+Given to the owner, to run in Cloud Shell while the pull request is open and the schedule does not yet exist:
 
 ```sh
 git clone https://github.com/aleogr/lab.git /tmp/lab-check
@@ -474,9 +513,22 @@ echo "exit: $?"
 
 Expected: `NOT AS DESIGNED: the job 'lab-postgres-stop' does not exist`, the same for `lab-postgres-start`, and `exit: 1`.
 
-Paste that output into the pull request. A check first seen passing proves nothing.
+**Collected, 2026-09-21, against the live project, schedule not yet applied:**
 
-- [ ] **Step 5: Commit**
+```
+lab-postgres-stop                  does not exist, want to exist
+lab-postgres-start                 does not exist, want to exist
+2 mismatch(es) between the live schedule and the design
+exit: 1
+```
+
+Two jobs missing, `exit: 1` — the schedule does not yet exist, exactly as expected before this merges. Paste that output into the pull request. A check first seen passing proves nothing.
+
+- [x] **Step 5: Commit** — `65b632a`, "Ask the live project whether the
+  schedule is the designed one". That commit also carried the File Structure
+  table correction noted above (this plan file, not just the two files
+  below). Step 4's own red is recorded in that step above and was committed
+  separately, later, in `fa54ff8`.
 
 ```bash
 git add gcp/tools/check-schedule.sh .github/workflows/ci.yml
