@@ -199,21 +199,38 @@ The owner works on both projects together, never one alone, between 08:00 and
 weeknights, and the weekend runs unbroken from Friday evening to Monday night.
 
 ```
-start  07:45  Tue–Fri   45 7 * * 2-5
+start  07:30  Tue–Fri   30 7 * * 2-5
 stop   22:00  Mon–Thu    0 22 * * 1-4
 time_zone = "America/Sao_Paulo"
 ```
 
-07:45 rather than 08:00 because a stopped instance takes a minute or two to
-accept connections. The zone by name rather than a UTC conversion, so the cron
-stays correct if Brazil ever restores summer time.
+The start is before 08:00 because a stopped instance does not answer the
+moment it is asked to. The zone by name rather than a UTC conversion, so the
+cron stays correct if Brazil ever restores summer time.
+
+**This document first said 07:45, "because a stopped instance takes a minute
+or two to accept connections". That was an estimate, and it was wrong.**
+Measured on 2026-09-21 against `marketplace.lab.aleogr.dev/health` rather than
+against what the API reports about itself: **686 seconds — eleven minutes and
+twenty-six seconds** — from issuing the start to the service answering
+`database: ok`. Stopping took 55 seconds.
+
+07:45 would still have worked, by three and a half minutes. That is not a
+margin on a sample of one, so the start moved to 07:30, which leaves about
+eighteen minutes over the measured figure. Fifteen more awake minutes on four
+nights is roughly 4.3 hours a month — about R$ 0.27 — and a morning that
+begins against a database still coming up costs more than that.
+
+The estimate is left visible rather than quietly replaced. It is the same
+failure as D9: a general expectation applied without asking the world, in a
+document whose other numbers were all read from somewhere.
 
 Friday night is left awake: two hours until Saturday is not worth a stop and a
 start. The same for Sunday night, which would also risk the database dying at
 midnight while somebody is working.
 
-About 39 hours asleep a week. 557 awake hours a month × R$ 0.0614 + R$ 10.11 of disk
-= **R$ 44 per month**, against R$ 110 today.
+About 38 hours asleep a week. 566 awake hours a month × R$ 0.0614 + R$ 10.11 of disk
+= **R$ 45 per month**, against R$ 110 today.
 
 ### What runs inside the window and must move
 
