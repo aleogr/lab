@@ -177,9 +177,9 @@ sloppy. Whoever lives on an instance that sleeps has to know when. `docs/lab.md`
 is the source; a tenant's cron is derived from it, and a change to the window
 is a change every tenant has to be told about.
 
-**Within this repository, the expression itself lives in two places too, and
-that is also deliberate — a different duplication from the one above.**
-`gcp/terraform/sleep.tf` declares the schedule; `.github/workflows/ci.yml`
+**Within this repository, the expression itself lives in two operative places
+too, and that is also deliberate — a different duplication from the one
+above.** `gcp/terraform/sleep.tf` declares the schedule; `.github/workflows/ci.yml`
 passes the same two cron strings to `gcp/tools/check-schedule.sh` as its
 expectation. Collapsing these into one copy would mean `check-schedule.sh`
 reads its expectation out of `sleep.tf`, which is exactly the thing the
@@ -188,7 +188,9 @@ it checks (see the plan; `check-federation.sh` is the pattern) rules out —
 that check would then always agree with `sleep.tf`, whatever `sleep.tf` said.
 **Changing the window means changing both `sleep.tf` and the arguments in
 `ci.yml`**, and `docs/lab.md` names both rather than claiming either is the
-only place.
+only place. "Two" counts what is operative — this document and the plan also
+quote the expressions for reference, which is not a third place to keep in
+step, only a citation of the two that are.
 
 ## D5 — `dispatch-outbox` does not run while the instance sleeps
 
@@ -324,9 +326,11 @@ right and the prose will be stale — which is the failure this repository spent
 2026-09-21 correcting six times over. The division is therefore explicit:
 `docs/lab.md` states the **policy** — four weeknights, 22:00 to 07:30 local,
 and what that means for a tenant — and names, rather than repeats, the places
-the **expressions** live. That is two places, not one: `gcp/terraform/sleep.tf`,
-the schedule itself, and `.github/workflows/ci.yml`, which passes the same
-crons to `check-schedule.sh` as the expectation it checks the schedule
-against — a second copy that D4 requires rather than tolerates, since a check
-may not read its expectation from the thing it is checking. Changing the
-window means changing both.
+the **expressions** live. That is two operative places, not one:
+`gcp/terraform/sleep.tf`, the schedule itself, and `.github/workflows/ci.yml`,
+which passes the same crons to `check-schedule.sh` as the expectation it
+checks the schedule against — a second copy that D4 requires rather than
+tolerates, since a check may not read its expectation from the thing it is
+checking. Changing the window means changing both. Neither count includes
+this document or the plan, which quote the expressions for reference rather
+than acting on them.
