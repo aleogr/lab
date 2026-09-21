@@ -18,15 +18,16 @@ when it arrives to find the database off.
 decided the window and the reasons for it, and none of it is reopened here:
 
 ```
-start  07:45  Tue–Fri   45 7 * * 2-5
+start  07:30  Tue–Fri   30 7 * * 2-5
 stop   22:00  Mon–Thu    0 22 * * 1-4
 time_zone = "America/Sao_Paulo"
 ```
 
-Four nights, not five. Friday night and Sunday night stay awake. 07:45 rather
-than 08:00 because a stopped instance takes a minute or two to accept
-connections. The backup window is 12:00 UTC because a stopped instance runs no
-automated backup. All of that stands.
+Four nights, not five. Friday night and Sunday night stay awake. The start is
+before 08:00 because a stopped instance does not answer the moment it is asked
+to — it was 07:45 on an estimate, and moved to 07:30 when the estimate was
+measured and found wrong by an order of magnitude. The backup window is 12:00
+UTC because a stopped instance runs no automated backup. All of that stands.
 
 `schooling` is also out of scope. It has not moved onto this instance, its
 migration is a separate piece of work coordinated with its own repository, and
@@ -111,7 +112,7 @@ job whose body is a constant, and is granted to nothing else.
 
 ## D4 — The laboratory publishes the window; each tenant arranges its own work around it
 
-Anything that runs between 22:00 and 07:45 and touches the database is the
+Anything that runs between 22:00 and 07:30 and touches the database is the
 tenant's to move, in the tenant's own repository. This repository does not
 reach into a tenant's Cloud Scheduler, for the same reason it does not declare
 a tenant's database: a house that reorganises the furniture in a room it rents
@@ -192,13 +193,33 @@ schedule that makes it necessary. Nothing to do.
 **That Cloud Scheduler's `oauth_token` authenticates against
 `sqladmin.googleapis.com`.** It is what the documentation describes for calls
 to Google APIs, and it is not something a session without `gcloud` can prove.
-The first apply is the proof, and until it has run and the instance has been
-seen to stop and start, this design is a claim.
+The first night is the proof, not the first apply: a job can exist, be enabled,
+carry the right cron and the right body, and still be refused the first time it
+fires.
 
-**How long a stopped instance takes to accept connections.** The 07:45 start
-exists because the 2026-09-20 design estimated "a minute or two". Nobody has
-timed it. If it is materially longer, the start moves earlier — the one number
-in the whole window that was never measured.
+**And the job's own result will not tell the whole truth.** The Admin API's
+`PATCH` returns an operation immediately rather than blocking until the
+instance has changed state — which the measurement below makes concrete, since
+`gcloud` gave up waiting after 600 seconds on an operation that succeeded. So
+Cloud Scheduler records that the request was **accepted**, not that the
+instance **started**. Its `status.code` proves the authentication and nothing
+beyond it. What proves the instance woke is `/health` and the index page, which
+is where the check belongs anyway.
+
+It also settles `attempt_deadline`: the job does not wait out the operation, so
+320 seconds is generous rather than tight.
+
+## What was verified
+
+**How long a stopped instance takes to accept connections: 686 seconds.**
+Measured on 2026-09-21, from issuing `activation-policy=ALWAYS` to
+`marketplace.lab.aleogr.dev/health` answering `database: ok` — against the
+service rather than against the API's opinion of itself, which is the only
+reading that means anything here. Stopping took 55 seconds.
+
+The 2026-09-20 design had estimated "a minute or two". It was wrong by between
+six and eleven times, and 07:45 survived only by three and a half minutes. The
+start moved to 07:30 for a margin that does not depend on a sample of one.
 
 ## Risks
 
@@ -215,7 +236,7 @@ does to it, and it says this.
 Terraform is executable and the document is prose, so the Terraform will be
 right and the prose will be stale — which is the failure this repository spent
 2026-09-21 correcting six times over. The division is therefore explicit:
-`docs/lab.md` states the **policy** — four weeknights, 22:00 to 07:45 local,
+`docs/lab.md` states the **policy** — four weeknights, 22:00 to 07:30 local,
 and what that means for a tenant — and names the Terraform file as the place
 the **expressions** live, without repeating them. A cron expression appears
 exactly once in this repository.

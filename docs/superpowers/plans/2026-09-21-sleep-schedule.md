@@ -20,7 +20,7 @@
 - **Never buy a green check.** No test skipped, no job made non-blocking, no threshold lowered.
 - The window, copied verbatim from `docs/superpowers/specs/2026-09-20-shared-database-instance-design.md`:
   ```
-  start  07:45  Tue–Fri   45 7 * * 2-5
+  start  07:30  Tue–Fri   30 7 * * 2-5
   stop   22:00  Mon–Thu    0 22 * * 1-4
   time_zone = "America/Sao_Paulo"
   ```
@@ -62,64 +62,57 @@ The identity and the jobs are separate files for the same reason `tenant_role.tf
 
 ---
 
-## Task 1: Measure what the design assumed
+## Task 1: Measure what the design assumed — DONE, 2026-09-21
 
-**This task produces a number, not a commit.** It runs in the owner's Cloud Shell, because a session holds no `gcloud` credential. It comes first because its answer can change Task 3.
+**This task produced a number, not a commit.** It ran in the owner's Cloud
+Shell, because a session holds no `gcloud` credential, and it came first
+because its answer could change Task 3. It did.
 
-The whole window rests on one unmeasured claim: the 2026-09-20 design put the start at 07:45 rather than 08:00 "because a stopped instance takes a minute or two to accept connections". Nobody timed it. If the real figure is six minutes, 07:45 is wrong and the start moves.
+**The result: 686 seconds.** Eleven minutes and twenty-six seconds from
+issuing `activation-policy=ALWAYS` to `marketplace.lab.aleogr.dev/health`
+answering `database: ok`. Stopping took 55 seconds.
 
-**Files:** none.
+The 2026-09-20 design had put the start at 07:45 "because a stopped instance
+takes a minute or two to accept connections". That estimate was wrong by
+between six and eleven times. 07:45 would still have worked — by three and a
+half minutes — which is not a margin on a sample of one, so **the start moved
+to `30 7 * * 2-5`**, leaving about eighteen minutes over the measured figure.
+Fifteen more awake minutes on four nights is roughly 4.3 hours a month, about
+R$ 0.27.
+
+Two things the measurement settled that were not what it was for:
+
+- **`gcloud` gave up waiting after 600 seconds** on an operation that
+  succeeded, which is how we know the Admin API's `PATCH` returns an operation
+  rather than blocking. So Cloud Scheduler will record that its request was
+  *accepted*, not that the instance *started*. Task 8 Step 6 depends on this.
+- **`attempt_deadline = "320s"` is generous rather than tight**, for the same
+  reason: the job does not wait the operation out.
+
+The measurement also gave the index page its first real test, unplanned: with
+the instance stopped, the `marketplace` card read `down · 503 · database
+unreachable · 202639b-20260921` — the 503, the reason, the CORS header that
+lets a browser read it, and the deployed version, all confirmed against a real
+outage rather than a mock.
+
+**Files:** none. The corrections it forced are commits of their own, on
+`claude/lab-sleep`: the 2026-09-20 spec's estimate replaced by the measurement
+with the estimate left visible, the 2026-09-21 spec moved from "not verified"
+to "what was verified", and this plan carrying `30 7 * * 2-5` throughout.
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: a duration in seconds, used by Task 3 to confirm or change `45 7 * * 2-5`.
+- Produces: `30 7 * * 2-5`, used by Task 3, Task 4 and Task 5.
 
-- [ ] **Step 1: Warn the owner what this does**
+- [x] **Step 1: Warn the owner what this does**
+- [x] **Step 2: Stop the instance and time the stop** — 55 seconds.
+- [x] **Step 3: Start it and time until it accepts a connection** — 686 seconds.
+- [x] **Step 4: Decide** — the 10-to-20-minute band, so the start moved earlier.
+- [x] **Step 5: Amend the specs with the measurement**
 
-Give this to the owner one command at a time, and say plainly first: this stops the shared laboratory database and starts it again. `marketplace.lab.aleogr.dev` will answer `database: unreachable` for the duration. Nothing is lost — a stopped instance keeps its disk — but it is an outage of the laboratory, so it happens at a moment the owner picks.
-
-- [ ] **Step 2: Stop the instance and time the stop**
-
-```sh
-PROJECT=aleogr-lab-shared-dacd
-time gcloud sql instances patch lab-postgres \
-  --project="$PROJECT" --activation-policy=NEVER --quiet
-```
-
-- [ ] **Step 3: Start it and time until it accepts a connection**
-
-```sh
-PROJECT=aleogr-lab-shared-dacd
-date -u +%H:%M:%S
-gcloud sql instances patch lab-postgres \
-  --project="$PROJECT" --activation-policy=ALWAYS --quiet
-date -u +%H:%M:%S
-
-# Then poll until the service says the database is back, which is the
-# thing that actually matters — not what the API reports about the instance.
-until curl -sf https://marketplace.lab.aleogr.dev/health \
-  | grep -q '"database":"ok"'; do sleep 5; done
-date -u +%H:%M:%S
-```
-
-- [ ] **Step 4: Decide, and record the decision**
-
-Three outcomes, and the plan says what each means rather than leaving it to judgement:
-
-| measured | what to do |
-|---|---|
-| under 10 minutes | `45 7 * * 2-5` stands. Record the measured figure in the 2026-09-21 spec, replacing "a minute or two" with what was seen. |
-| 10 to 20 minutes | the start moves earlier so the instance is up by 08:00 — `30 7 * * 2-5` or `15 7 * * 2-5`. Every document stating 07:45 changes with it, and this plan's Task 3, Task 5 and the CI step in Task 4 all carry the new expression. |
-| over 20 minutes | stop and take it to the owner. A start that slow changes the case for sleeping at all, and that is a design decision, not an implementation one. |
-
-- [ ] **Step 5: Amend the spec with the measurement**
-
-The spec's section "What is not verified, and must be before this is called done" says nobody has timed it. Replace that paragraph with the figure and the date. Commit on `claude/lab-sleep`.
-
-```bash
-git add docs/superpowers/specs/2026-09-21-sleep-schedule-design.md
-git commit -m "Record how long the instance really takes to come back"
-```
+**If the window is ever changed again, this is the procedure.** Measure against
+`/health`, not against the API's opinion of itself; a start that reports
+success is not a database that answers.
 
 ---
 
@@ -209,7 +202,7 @@ git commit -m "Give the schedule an identity of its own"
 - Consumes: `google_service_account.sleeper.email` (Task 2), `google_sql_database_instance.shared.name` (declared in `gcp/terraform/instance.tf`), `var.project_id`, `var.region`.
 - Produces: two `google_cloud_scheduler_job` resources named `lab-postgres-stop` and `lab-postgres-start`, which Task 4's check reads by those names.
 
-**If Task 1 changed the start time, use the new expression everywhere below rather than `45 7 * * 2-5`.**
+**Task 1 moved the start from 07:45 to 07:30. `30 7 * * 2-5` below is that decision; it is not the figure the 2026-09-20 design was written with.**
 
 - [ ] **Step 1: Write the schedule**
 
@@ -269,7 +262,7 @@ resource "google_cloud_scheduler_job" "start" {
   name        = "lab-postgres-start"
   description = "Starts the shared instance before the working day."
 
-  schedule  = "45 7 * * 2-5"
+  schedule  = "30 7 * * 2-5"
   time_zone = "America/Sao_Paulo"
 
   attempt_deadline = "320s"
@@ -297,7 +290,15 @@ resource "google_cloud_scheduler_job" "start" {
 }
 ```
 
-- [ ] **Step 2: Record why `activation_policy` is not in `instance.tf`**
+- [ ] **Step 2: Correct the hour the backup comment names**
+
+`gcp/terraform/instance.tf` line 40 says the instance is stopped "from 22:00 to
+07:45 local on Monday, Tuesday, Wednesday and Thursday nights". Task 1 moved
+the start. Change 07:45 to 07:30 and leave the rest of that comment alone — its
+argument, that a backup window in the small hours would silently stop producing
+backups, does not depend on the minute.
+
+- [ ] **Step 3: Record why `activation_policy` is not in `instance.tf`**
 
 In `gcp/terraform/instance.tf`, inside the `settings` block, immediately after the `deletion_protection_enabled` line, add:
 
@@ -310,7 +311,7 @@ In `gcp/terraform/instance.tf`, inside the `settings` block, immediately after t
     # Completing this block by adding it would silently disable the schedule.
 ```
 
-- [ ] **Step 3: Check it is well-formed**
+- [ ] **Step 4: Check it is well-formed**
 
 ```sh
 terraform -chdir=gcp/terraform fmt -check -recursive
@@ -320,7 +321,7 @@ terraform -chdir=gcp/terraform validate
 
 Expected: `fmt` silent, `validate` prints `Success! The configuration is valid.`
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add gcp/terraform/sleep.tf gcp/terraform/instance.tf
@@ -454,7 +455,7 @@ In `.github/workflows/ci.yml`, after the "The federation matches the design" ste
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           ./gcp/tools/check-schedule.sh "${{ vars.GCP_PROJECT_ID }}" us-central1 \
-            lab-postgres "0 22 * * 1-4" "45 7 * * 2-5" America/Sao_Paulo
+            lab-postgres "0 22 * * 1-4" "30 7 * * 2-5" America/Sao_Paulo
 ```
 
 - [ ] **Step 4: Collect the red, before the merge**
@@ -467,7 +468,7 @@ Give the owner this, to run in Cloud Shell while the pull request is open and th
 git clone https://github.com/aleogr/lab.git /tmp/lab-check
 cd /tmp/lab-check && git checkout claude/lab-sleep
 ./gcp/tools/check-schedule.sh aleogr-lab-shared-dacd us-central1 \
-  lab-postgres "0 22 * * 1-4" "45 7 * * 2-5" America/Sao_Paulo
+  lab-postgres "0 22 * * 1-4" "30 7 * * 2-5" America/Sao_Paulo
 echo "exit: $?"
 ```
 
@@ -499,18 +500,19 @@ git commit -m "Ask the live project whether the schedule is the designed one"
 
 The division the spec settles: this file carries the **policy**, `sleep.tf` carries the **expressions**, and a cron appears exactly once in the repository. Keep the two consequences that follow the section — the backup window and the missing transaction log — untouched; both are still true and neither depends on this change.
 
-Replace the opening paragraph — the one beginning "**Not yet — the instance runs continuously today.**" — with this. `<measured>` is the one value Task 1 supplies, and it is the only thing left to fill in:
+Replace the opening paragraph — the one beginning "**Not yet — the instance runs continuously today.**" — with this:
 
 ```markdown
-Asleep four weeknights: Monday through Thursday, from 22:00 to 07:45 local
+Asleep four weeknights: Monday through Thursday, from 22:00 to 07:30 local
 (UTC−3). Awake at every other hour, which means Friday night and the whole
 weekend run unbroken — two hours until Saturday is not worth a stop and a
 start, and a stop on Sunday night would risk the database going down at
 midnight while somebody is still working.
 
-The start is at 07:45 rather than 08:00 because a stopped instance does not
-answer the moment it is asked to: measured on 2026-09-21, it took `<measured>`
-from the start command to `/health` reporting `database: ok`.
+The start is at 07:30 rather than 08:00 because a stopped instance does not
+answer the moment it is asked to: measured on 2026-09-21, it took 686 seconds
+— eleven and a half minutes — from the start command to `/health` reporting
+`database: ok`.
 
 `gcp/terraform/sleep.tf` holds the two cron expressions, and they appear
 nowhere else in this repository — this section is the policy, that file is the
@@ -523,19 +525,48 @@ jobs for exactly this reason: an audit walk that ran at 01:17, and an outbox
 dispatch that ran every minute of every day.
 ```
 
-- [ ] **Step 2: Check nothing else still says it is not in effect**
+- [ ] **Step 2: Reconcile the three documents Task 1's measurement invalidated**
+
+Moving the start from 07:45 to 07:30 left `07:45` standing in three places that
+are not historical records, and one of them is a promise this repository made
+three commits ago.
+
+1. **`docs/superpowers/specs/2026-09-21-lab-home-design.md`, D6's `/health`
+   illustration** — "from 22:00 to 07:45 the instance sleeps". It is an
+   illustration of what the page will show, so the hour has to be the real one.
+   Change it to 07:30.
+
+2. **`docs/superpowers/plans/2026-09-21-lab-home.md`, Task 5's quoted
+   `docs/lab.md` block** — it quotes the paragraph this task is rewriting, so it
+   diverges the moment this task lands.
+
+3. **That same plan's status block**, which says quoted content "agrees with
+   the file it produced". Once `docs/lab.md` moves on for a reason that has
+   nothing to do with that plan, the sentence stops being true, and chasing it
+   forever is not the answer. Narrow it: the quotes record what each task
+   produced **on the day it shipped**, and a later change to the file is a
+   later decision rather than a divergence to fix. Then update the Task 5 block
+   once, to what this task writes, and say in the block that it was refreshed
+   on 2026-09-21 when the start time moved.
+
+The third is the interesting one. That sentence was added to stop a reader
+treating a stale quote as a competing decision — and it was written as though
+quoted content could stay current forever, which nothing can.
+
+- [ ] **Step 3: Check nothing else still says it is not in effect**
 
 ```sh
-grep -rn -iE "not in effect|runs continuously|four weeknight|22:00|07:45" \
+grep -rn -iE "not in effect|runs continuously|four weeknight|22:00|07:30" \
   --include='*.md' --include='*.tf' . | grep -v '^./.superpowers'
 ```
 
 Every hit must either be the new prose, the expressions in `sleep.tf`, or a dated historical record in `docs/superpowers/`. The live page on the `site` branch also says "that is not in effect yet" — it is **not** in this task and **not** in this pull request. Publishing it is the owner's act, and it happens after the first night the schedule actually runs, not before.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add docs/lab.md
+git add docs/lab.md docs/superpowers/specs/2026-09-21-lab-home-design.md \
+  docs/superpowers/plans/2026-09-21-lab-home.md
 git commit -m "Say that the instance now really does sleep"
 ```
 
@@ -647,7 +678,7 @@ In `.github/workflows/terraform.yml`, in the `apply` job, between "Initialise" a
           echo "activationPolicy=$state"
           if [ "$state" != "ALWAYS" ]; then
             echo "::error::The shared instance lab-postgres is stopped." \
-              "It sleeps Monday to Thursday, 22:00 to 07:45 local" \
+              "It sleeps Monday to Thursday, 22:00 to 07:30 local" \
               "(aleogr/lab, docs/lab.md). Nothing is wrong with this commit;" \
               "re-run this workflow after the instance starts."
             exit 1
@@ -726,13 +757,15 @@ The pull request run stops at `plan`; `apply` and the three checks run only on t
 
 The spec names one thing it could not verify: **that Cloud Scheduler's `oauth_token` authenticates against `sqladmin.googleapis.com`.** No apply proves that. A job can exist, be enabled, carry the right cron and the right body, and still be refused by the API the first time it fires. Until a night has run, D1 is a claim.
 
+**And the job's own result answers only half of it.** Task 1 measured an operation that `gcloud` waited 600 seconds for and still did not see finish, which means the Admin API returns an operation immediately instead of blocking. Cloud Scheduler therefore records that its request was *accepted* — that is what a green `status.code` proves, and it is exactly the authentication question. It proves nothing about whether the instance actually started eleven minutes later. Read both, and read them for different things.
+
 So the morning after the first stop, read the live world rather than the dashboard:
 
 ```sh
 curl -s https://marketplace.lab.aleogr.dev/health
 ```
 
-Before 07:45 it should answer `"database":"unreachable"`; after the start, `"database":"ok"`. The index page at `lab.aleogr.dev` shows the same thing without a terminal.
+Before 07:30 it should answer `"database":"unreachable"`; after the start, `"database":"ok"`. The index page at `lab.aleogr.dev` shows the same thing without a terminal.
 
 Then read both jobs' last result, which is where an authentication refusal would actually appear:
 
