@@ -1,12 +1,13 @@
 # The instance sleeps
 
 **Date:** 2026-09-21
-**Status:** agreed, not yet implemented
+**Status:** Whether the schedule below is in effect is not this line's to
+assert: it flips on this repository's own merge and apply, and can drift from
+this document the moment that happens without this line being touched.
+`docs/lab.md` is the authority for the window and for whether it is currently
+in effect.
 
-The sleep schedule has existed on paper since 2026-09-20 and nothing implements
-it. `lab-postgres` has run continuously since the day it was created, and every
-document that describes the window now says, correctly, that it is not in
-effect.
+The sleep schedule has existed on paper since 2026-09-20.
 
 This design decides the **mechanism**: what stops and starts the instance, what
 happens to the work that runs while it is asleep, and what a deployment does
