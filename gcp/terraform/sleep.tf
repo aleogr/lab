@@ -42,7 +42,19 @@ resource "google_cloud_scheduler_job" "stop" {
     }
   }
 
-  depends_on = [google_project_service.enabled]
+  # THE SECOND DEPENDENCY IS NOT IMPLIED BY THE `oauth_token` REFERENCE
+  # ABOVE. Referencing `google_service_account.sleeper.email` only tells
+  # Terraform this job needs the account to exist first; it says nothing
+  # about `deployer_acts_as_sleeper` (`sleeper.tf`), the binding that lets
+  # `deployer@` — the identity running this apply — create a job that acts
+  # as `sleeper@` in the first place. Nothing else in this resource touches
+  # that binding, so without stating it here the graph could create this job
+  # before the binding exists, and the create call would fail exactly the
+  # way it already has once.
+  depends_on = [
+    google_project_service.enabled,
+    google_service_account_iam_member.deployer_acts_as_sleeper,
+  ]
 }
 
 resource "google_cloud_scheduler_job" "start" {
@@ -75,5 +87,12 @@ resource "google_cloud_scheduler_job" "start" {
     }
   }
 
-  depends_on = [google_project_service.enabled]
+  # Same reason as the stop job above: the `oauth_token` reference implies
+  # only that `sleeper@` must exist first, not that `deployer_acts_as_sleeper`
+  # (`sleeper.tf`) must exist before `deployer@` can create a job that acts
+  # as it.
+  depends_on = [
+    google_project_service.enabled,
+    google_service_account_iam_member.deployer_acts_as_sleeper,
+  ]
 }

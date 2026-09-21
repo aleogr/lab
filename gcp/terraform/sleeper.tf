@@ -42,3 +42,41 @@ resource "google_project_iam_member" "sleeper" {
   role    = google_project_iam_custom_role.sleeper.name
   member  = "serviceAccount:${google_service_account.sleeper.email}"
 }
+
+# THE JOBS IN `sleep.tf` RUN AS `sleeper@`, NOT AS `deployer@`. Each carries
+# an `oauth_token` naming `sleeper@`'s email, so creating one means creating
+# something that impersonates that account — and impersonation is its own
+# permission, billed and checked separately from administering the account
+# being impersonated. Without this binding, `deployer@` can create the
+# service account and the role above and still be refused when it tries to
+# create a job that acts as either.
+#
+# THAT IS NOT WHAT `serviceAccountAdmin` GRANTS. `deployer.tf`'s
+# `deployer_service_accounts` binding lets `deployer@` create, delete and
+# otherwise manage the *identity* `sleeper@` — it says nothing about acting
+# *as* it. `roles/iam.serviceAccountUser` is the permission that borrows an
+# identity rather than administers one, and GCP keeps the two separate on
+# purpose: holding the first does not imply the second. This was found
+# exactly that way — the apply got past creating `sleeper@` and its role,
+# then failed on the two Cloud Scheduler jobs with `iam.serviceAccounts.actAs`
+# denied, a second missing permission behind the first.
+#
+# DECLARED HERE, NOT GRANTED BY HAND, unlike the project-level roles in
+# `deployer.tf`. Those are granted by hand because applying them and using
+# them in the same run would race IAM propagation — Terraform cannot grant
+# itself a permission it needs in order to run. This binding does not have
+# that problem: it targets a service account this configuration itself
+# creates, so there is no chicken-and-egg. Terraform creates `sleeper@`,
+# then this binding, then the two jobs that need it — an order `sleep.tf`
+# states explicitly rather than leaves to the graph, since neither job
+# resource references this binding to imply it.
+#
+# THE PATTERN IS NOT NEW. `aleogr/marketplace`'s `infra/terraform/tasks.tf`
+# grants its own Cloud Tasks invoker the identical binding, for the identical
+# reason its own comment gives: "Creating a task that runs as the invoker
+# means acting as it."
+resource "google_service_account_iam_member" "deployer_acts_as_sleeper" {
+  service_account_id = google_service_account.sleeper.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.deployer.email}"
+}

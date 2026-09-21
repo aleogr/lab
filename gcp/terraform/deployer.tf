@@ -113,6 +113,36 @@ resource "google_project_iam_member" "deployer_service_accounts" {
   member  = "serviceAccount:${google_service_account.deployer.email}"
 }
 
+# AND CLOUD SCHEDULER, which `sleep.tf`'s two `google_cloud_scheduler_job`
+# resources need and nothing else in this project does yet.
+#
+# NONE OF THE FIVE ROLES ABOVE COMES CLOSE. `cloudsql.admin` is the database.
+# `resourcemanager.projectIamAdmin`, `iam.workloadIdentityPoolAdmin`,
+# `iam.roleAdmin` and `iam.serviceAccountAdmin` are identities and the roles
+# identities hold. Cloud Scheduler is a different API with its own
+# permission surface, and none of the five reaches it.
+#
+# THIS WAS FOUND BY A RED APPLY ON `main`, NOT BY ASKING. The apply that
+# created `sqlSleeper`, this project's `serviceAccountAdmin` binding,
+# `sleeper@` and its role binding all succeeded; both `google_cloud_scheduler_job`
+# resources then failed with `cloudscheduler.jobs.create` denied, because
+# nothing above grants it. That is exactly what "The blind spot these grants
+# came from" in README.md says will keep happening: Task 2 asked the
+# question for a custom role and a service account and found the
+# `serviceAccountAdmin` gap; nobody asked it again for Cloud Scheduler. The
+# lesson is not "also grant Scheduler" — it is to check the deployer's reach
+# for every new resource *type* this configuration adds, before the apply
+# that adds it, rather than only for the ones somebody thought to ask about.
+#
+# It is also granted by hand once, for the same chicken-and-egg reason as the
+# three bindings above: granting it and using it in the same apply races the
+# few minutes IAM takes to propagate.
+resource "google_project_iam_member" "deployer_scheduler" {
+  project = var.project_id
+  role    = "roles/cloudscheduler.admin"
+  member  = "serviceAccount:${google_service_account.deployer.email}"
+}
+
 data "google_project" "current" {
   project_id = var.project_id
 }
