@@ -205,9 +205,9 @@ addresses and the site serves. A CNAME is also what GitHub documents for a
 earlier reasoning had reached for the record GitHub recommends for the wrong
 shape of name.
 
-The zone is on Cloudflare, and nothing in it is proxied — which is what lets
-GitHub issue its certificate. Nothing in the zone's posture had to change to
-add the CNAME.
+The zone is on Cloudflare, and the `lab` CNAME is unproxied — which is what
+lets GitHub issue its certificate. Nothing in the zone's posture had to
+change to add it.
 
 **A records to GitHub's published addresses remain the fallback** if the CNAME
 ever has to go — read from GitHub's documentation at the moment of applying,

@@ -7,10 +7,13 @@ Plan 2.
 
 This design covers two changes made together because they interact: moving the
 lab databases of `marketplace` and `schooling` onto one shared Cloud SQL
-instance, and stopping that instance outside working hours.
+instance, and putting that instance to sleep on four weeknights.
 
-The decisions that survive implementation belong in `docs/infrastructure.md`;
-this file is the record of how they were reached, and is written once.
+The decisions that survive implementation belong in `docs/infrastructure.md`
+in `aleogr/marketplace`; this file is the record of how they were reached,
+and its reasoning is written once. The status line above and the applied-value
+note below it are the exceptions: they say what the world has since done,
+not why.
 
 `schooling` lives in another repository (`codeschool-ing/schooling`) and is not
 this session's to write. Everything below that touches it is described so that
