@@ -22,7 +22,7 @@ resource "google_project_iam_custom_role" "sleeper" {
   project     = var.project_id
   role_id     = "sqlSleeper"
   title       = "Cloud SQL sleeper"
-  description = "Starts and stops the shared instance on a schedule. It cannot delete it and reaches no tenant's data."
+  description = "Starts and stops the shared instance via cloudsql.instances.update, GCP's smallest permission for the job, which can also resize its disk, rewrite its backup schedule and turn off deletion protection. Cannot delete it and reaches no tenant's data."
 
   permissions = [
     "cloudsql.instances.get",

@@ -176,6 +176,19 @@ sloppy. Whoever lives on an instance that sleeps has to know when. `docs/lab.md`
 is the source; a tenant's cron is derived from it, and a change to the window
 is a change every tenant has to be told about.
 
+**Within this repository, the expression itself lives in two places too, and
+that is also deliberate — a different duplication from the one above.**
+`gcp/terraform/sleep.tf` declares the schedule; `.github/workflows/ci.yml`
+passes the same two cron strings to `gcp/tools/check-schedule.sh` as its
+expectation. Collapsing these into one copy would mean `check-schedule.sh`
+reads its expectation out of `sleep.tf`, which is exactly the thing the
+Global Constraint that a check must not read its expectation from the thing
+it checks (see the plan; `check-federation.sh` is the pattern) rules out —
+that check would then always agree with `sleep.tf`, whatever `sleep.tf` said.
+**Changing the window means changing both `sleep.tf` and the arguments in
+`ci.yml`**, and `docs/lab.md` names both rather than claiming either is the
+only place.
+
 ## D5 — `dispatch-outbox` does not run while the instance sleeps
 
 `aleogr/marketplace` declares `dispatch-outbox` as `* * * * *` in `Etc/UTC`:
@@ -228,6 +241,17 @@ construction.
 project — an endpoint or a job whose only power is to set `ALWAYS`, callable by
 tenants — and not a wider grant. It is not built now because nothing yet
 justifies a subsystem.
+
+This project has the same exposure and no guard for it: `ci.yml` here applies
+on every merge to `main` with no equivalent of the marketplace's refusal step,
+so a merge landing at 23:00 also applies against a stopped instance. It is
+harmless today because `check-instance.sh` asserts neither the instance's
+running state nor its `activation_policy` — D2 relies on that omission on
+purpose — so there is nothing in this repository's own apply that a stopped
+instance could presently break. It stops being harmless the day an apply here
+has a genuine settings change to make against the instance inside the window;
+that is the day a guard is due, not before, and not one built now on
+spec alone.
 
 ## What must move
 
@@ -298,6 +322,10 @@ Terraform is executable and the document is prose, so the Terraform will be
 right and the prose will be stale — which is the failure this repository spent
 2026-09-21 correcting six times over. The division is therefore explicit:
 `docs/lab.md` states the **policy** — four weeknights, 22:00 to 07:30 local,
-and what that means for a tenant — and names the Terraform file as the place
-the **expressions** live, without repeating them. A cron expression appears
-exactly once in this repository.
+and what that means for a tenant — and names, rather than repeats, the places
+the **expressions** live. That is two places, not one: `gcp/terraform/sleep.tf`,
+the schedule itself, and `.github/workflows/ci.yml`, which passes the same
+crons to `check-schedule.sh` as the expectation it checks the schedule
+against — a second copy that D4 requires rather than tolerates, since a check
+may not read its expectation from the thing it is checking. Changing the
+window means changing both.

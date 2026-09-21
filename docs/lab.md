@@ -35,9 +35,14 @@ answer the moment it is asked to: measured on 2026-09-21, it took 686 seconds
 — eleven and a half minutes — from the start command to `/health` reporting
 `database: ok`.
 
-`gcp/terraform/sleep.tf` holds the two cron expressions, and they appear
-nowhere else in this repository — this section is the policy, that file is the
-schedule.
+The two cron expressions live in exactly two places in this repository, on
+purpose: `gcp/terraform/sleep.tf`, the schedule itself, and the
+`check-schedule.sh` invocation in `.github/workflows/ci.yml`, which is what
+that script is told to expect. The second copy is not drift — it exists
+because a check must not read its expectation from the thing it is checking:
+a `check-schedule.sh` that read `sleep.tf`'s own cron strings back to itself
+would always agree with it, whatever `sleep.tf` said. **Changing the window
+means changing both places**, `sleep.tf` and the arguments in `ci.yml`.
 
 **A tenant whose own work runs at night moves it, in its own repository.**
 This project does not reach into a tenant's Cloud Scheduler for the same
@@ -60,6 +65,13 @@ The custom role `sqlTenant`, granted to the identity that applies the project's
 Terraform — which is not the identity that deploys its application. It may
 create and alter its own database and its own users, and nothing else: no
 `cloudsql.instances.delete`, no `cloudsql.instances.update`.
+
+**One identity in this project holds `cloudsql.instances.update` anyway:**
+`sleeper@`, the service account behind the schedule above. GCP offers nothing
+narrower than that permission for starting and stopping an instance, so the
+same grant that lets it wake `lab-postgres` up could also resize its disk,
+rewrite its backup schedule or turn deletion protection off — it is held by
+two Cloud Scheduler jobs whose bodies are constants, and by nothing else.
 
 **That role is not a wall between projects.** Cloud SQL grants IAM per project
 and not per database. What keeps one laboratory's data away from another's is
