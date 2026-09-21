@@ -187,23 +187,32 @@ The marketplace's two-language rule exists for a product with users; this index
 has one reader, and a second translation of it would be recurring work with no
 audience.
 
-### D9 — DNS uses A records, because a CNAME cannot live beside the TXT
+### D9 — DNS uses a CNAME; the rule that ruled it out was wrong
 
 `lab.aleogr.dev` already carries a TXT record (`brevo-code=…`), and
 `brevo1._domainkey.lab`, `brevo2._domainkey.lab` and `_dmarc.lab` sit beneath
 it. That TXT is what proves domain ownership to the mail provider, so it stays.
-A CNAME cannot coexist with other records at the same name, so the page is
-reached through **A records**, which can.
+
+**This decision originally reached for A records, on the general rule that a
+CNAME cannot coexist with other records at the same name. That rule does not
+describe Cloudflare's behaviour, and the design assumed it instead of checking
+it.** Applying it found the opposite: Cloudflare accepts a `CNAME` at
+`lab.aleogr.dev`, pointing to `aleogr.github.io`, unproxied, sitting beside the
+Brevo TXT at the same name, unchanged. The name resolves to GitHub's Pages
+addresses and the site serves. A CNAME is also what GitHub documents for a
+**subdomain** — A records are what it documents for an **apex** — so the
+earlier reasoning had reached for the record GitHub recommends for the wrong
+shape of name.
 
 The zone is on Cloudflare and every one of its 27 records is **DNS only**, with
-no proxying — which is what GitHub needs in order to issue its certificate.
-Nothing in the zone's posture has to change.
+no proxying — which is what lets GitHub issue its certificate. Nothing in the
+zone's posture had to change to add the CNAME.
 
-**The addresses are read from GitHub's documentation at the moment of applying,
-never from memory.** They are exactly the class of fact that changes and that
-this session has already been bitten by. If A records turn out not to serve, the
-fallback is to let Cloudflare serve the page itself — a decision to bring back to
-the owner rather than to improvise.
+**A records to GitHub's published addresses remain the fallback** if the CNAME
+ever has to go — read from GitHub's documentation at the moment of applying,
+never from memory, since they are exactly the class of fact that changes and
+that this session has already been bitten by, and since GitHub documents them
+for an apex rather than for a subdomain like this one.
 
 Alongside: a `CNAME` file in the repository (how Pages learns the domain),
 "Enforce HTTPS" on, and the Pages domain verification record, which is what stops
@@ -236,7 +245,7 @@ inconsistencies.
 | 1 | widen the federation to accept both names | pull request in `shared-infra` | CI |
 | 2 | rename the repository | GitHub | the owner |
 | 3 | narrow the federation, remove the old binding, rewrite README and comments | pull request in `lab` | CI |
-| 4 | the page: the `site` branch, `CNAME`, Pages, A records, domain verification | pull request in `lab` + Cloudflare | CI and the owner |
+| 4 | the page: the `site` branch, the `CNAME` file, Pages, the DNS `CNAME` record, domain verification | pull request in `lab` + Cloudflare | CI and the owner |
 | 5 | the laboratory's rules move in; the earlier spec moves in (D11) | pull requests in `lab` and `marketplace` | CI |
 | — | CORS on `/health` | a pull request per tenant | CI |
 
@@ -272,10 +281,13 @@ reading of the live world, never the file that states the intent.**
 
 ## Risks
 
-**A records for a subdomain on GitHub Pages.** GitHub documents CNAME for
-subdomains and A records for an apex. A records do serve, but this is verified
-against the documentation at apply time (D9), with the Cloudflare fallback held
-in reserve.
+**A CNAME sharing its name with another record.** GitHub's documented path for
+a subdomain is a CNAME, and that is what serves `lab.aleogr.dev` now (D9). The
+general DNS rule says a CNAME must be the only record at its name; Cloudflare
+does not enforce that here, so the Brevo TXT and the CNAME coexist at the same
+name. That is this provider's behaviour, not a documented standard, so a
+different provider might refuse it — A records to GitHub's published
+addresses are the reserved fallback if it ever does.
 
 **Certificate issuance** depends on DNS having propagated and on the record
 staying unproxied, which it is. Usually minutes; it can be hours.
