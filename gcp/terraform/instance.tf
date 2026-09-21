@@ -36,9 +36,9 @@ resource "google_sql_database_instance" "shared" {
       enabled = true
 
       # NOON UTC, AND THE HOUR IS THE WHOLE POINT. A stopped instance runs no
-      # automated backup, and `sleep.tf`, two files over, stops this instance
-      # from 22:00 to 07:30 local on Monday, Tuesday, Wednesday and Thursday
-      # nights. A backup window in the small hours would mean both projects
+      # automated backup, and `sleep.tf` stops this instance from 22:00 to
+      # 07:30 local on Monday, Tuesday, Wednesday and Thursday nights. A
+      # backup window in the small hours would mean both projects
       # quietly stopped having daily backups — no error, nothing to notice,
       # just an absence.
       start_time = "12:00"
