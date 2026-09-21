@@ -1,13 +1,10 @@
 # THE REPOSITORIES THIS PROJECT TRUSTS, in the one list that says so.
 #
-# Two names is a transient state, not the design. The condition is widened
-# here, the repository is renamed on GitHub, and the old name is removed
-# afterwards (docs/superpowers/specs/2026-09-21-lab-home-design.md, D3). The
-# order is not a preference: a CI run that cannot authenticate cannot apply the
-# fix for not being able to authenticate.
+# One name, and the check in CI asserts the live provider names exactly that.
+# The list was briefly two while this repository was renamed
+# (docs/superpowers/specs/2026-09-21-lab-home-design.md, D3).
 locals {
   federated_repositories = [
-    "aleogr/shared-infra",
     "aleogr/lab",
   ]
 }
@@ -18,7 +15,7 @@ locals {
 resource "google_service_account" "deployer" {
   account_id   = "deployer"
   display_name = "GitHub Actions, applying this configuration"
-  description  = "Federated to aleogr/shared-infra. Owns the instance, and no tenant's data."
+  description  = "Federated to aleogr/lab. Owns the instance, and no tenant's data."
 }
 
 resource "google_iam_workload_identity_pool" "github" {
@@ -53,15 +50,6 @@ resource "google_service_account_iam_member" "deployer_federation" {
   service_account_id = google_service_account.deployer.name
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github.workload_identity_pool_id}/attribute.repository/${each.value}"
-}
-
-# ONE RESOURCE BECAME ONE PER REPOSITORY, and without this Terraform would
-# destroy the binding CI authenticates with and create it again in the same
-# apply. An apply that failed between those two steps would leave CI unable to
-# authenticate, with no way in to repair it.
-moved {
-  from = google_service_account_iam_member.deployer_federation
-  to   = google_service_account_iam_member.deployer_federation["aleogr/shared-infra"]
 }
 
 resource "google_project_iam_member" "deployer_sql" {

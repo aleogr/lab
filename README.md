@@ -1,12 +1,18 @@
-# shared-infra
+# lab
 
-The Cloud SQL instance the lab databases of `aleogr/marketplace` and
-`codeschool-ing/schooling` share, and nothing else.
+The home of `lab.aleogr.dev`: the Cloud SQL instance the laboratory's projects
+share, the index page the address answers with, and the rules that hold across
+every project in it.
 
-## What this owns
+## What lives here
 
-The project `aleogr-lab-shared-dacd`, the instance `lab-postgres`, and the IAM
-that lets each tenant declare its own database inside it.
+What is **true about the laboratory as a whole**. What is true about one project
+lives in that project. The sleep schedule is the laboratory's, because stopping
+the instance affects everyone; the `marketplace` database's connection ceiling
+is the marketplace's, because its own pool is what sets the number.
+
+Without that rule, "it belongs to the lab" becomes the answer for anything
+nobody knows where to put.
 
 ## What this does not own
 
