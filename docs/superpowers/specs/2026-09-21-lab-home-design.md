@@ -166,7 +166,7 @@ what prevents both lies, and it is what makes the panel worth looking at in six
 months.
 
 The case that will occur Monday through Thursday nights, once Plan 2's
-schedule is in effect: from 22:00 to 07:45 the instance sleeps, Cloud Run
+schedule is in effect: from 22:00 to 07:30 the instance sleeps, Cloud Run
 keeps serving, and `/health` answers **503 with
 `"database":"unreachable"`**. The page shows what `/health` said, and shows the
 working window beside it so the reading takes one glance. It does **not** assert

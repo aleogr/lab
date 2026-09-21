@@ -470,11 +470,11 @@ In `.github/workflows/ci.yml`, after the "The federation matches the design" ste
             lab-postgres "0 22 * * 1-4" "30 7 * * 2-5" America/Sao_Paulo
 ```
 
-- [ ] **Step 4: Collect the red, before the merge**
+- [x] **Step 4: Collect the red, before the merge** — done, 2026-09-21.
 
-**This is a blocking step and it slipped last time.** The 2026-09-21 lab-home plan collected its red after the pull request had already merged, and the ledger records that the pre-apply moment was then gone for good. Do not repeat it.
+**This is a blocking step and it slipped last time.** The 2026-09-21 lab-home plan collected its red after the pull request had already merged, and the ledger records that the pre-apply moment was then gone for good. Do not repeat it. **This time the order is right: the owner ran the check below against the live project while `claude/lab-sleep` was still unmerged and the schedule did not yet exist**, before this pull request opens — not after.
 
-Give the owner this, to run in Cloud Shell while the pull request is open and the schedule does not yet exist:
+Given to the owner, to run in Cloud Shell while the pull request is open and the schedule does not yet exist:
 
 ```sh
 git clone https://github.com/aleogr/lab.git /tmp/lab-check
@@ -486,7 +486,16 @@ echo "exit: $?"
 
 Expected: `NOT AS DESIGNED: the job 'lab-postgres-stop' does not exist`, the same for `lab-postgres-start`, and `exit: 1`.
 
-Paste that output into the pull request. A check first seen passing proves nothing.
+**Collected, 2026-09-21, against the live project, schedule not yet applied:**
+
+```
+lab-postgres-stop                  does not exist, want to exist
+lab-postgres-start                 does not exist, want to exist
+2 mismatch(es) between the live schedule and the design
+exit: 1
+```
+
+Two jobs missing, `exit: 1` — the schedule does not yet exist, exactly as expected before this merges. Paste that output into the pull request. A check first seen passing proves nothing.
 
 - [ ] **Step 5: Commit**
 

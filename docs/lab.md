@@ -24,13 +24,26 @@ why, including what this arrangement does *not* protect against.
 
 ## When the instance is awake
 
-**Not yet — the instance runs continuously today.** Plan 2 puts it to sleep on
-four weeknights only, Monday through Thursday, from 22:00 to 07:45 local
-(UTC−3); 07:45 rather than 08:00 because a stopped instance takes a minute or
-two to accept connections. Friday night and the whole weekend stay awake: two
-hours until Saturday is not worth a stop and a start, and the same risk holds
-for Sunday night, which would leave the database dying at midnight while
-somebody is working.
+Asleep four weeknights: Monday through Thursday, from 22:00 to 07:30 local
+(UTC−3). Awake at every other hour, which means Friday night and the whole
+weekend run unbroken — two hours until Saturday is not worth a stop and a
+start, and a stop on Sunday night would risk the database going down at
+midnight while somebody is still working.
+
+The start is at 07:30 rather than 08:00 because a stopped instance does not
+answer the moment it is asked to: measured on 2026-09-21, it took 686 seconds
+— eleven and a half minutes — from the start command to `/health` reporting
+`database: ok`.
+
+`gcp/terraform/sleep.tf` holds the two cron expressions, and they appear
+nowhere else in this repository — this section is the policy, that file is the
+schedule.
+
+**A tenant whose own work runs at night moves it, in its own repository.**
+This project does not reach into a tenant's Cloud Scheduler for the same
+reason it does not declare a tenant's database. `aleogr/marketplace` moved two
+jobs for exactly this reason: an audit walk that ran at 01:17, and an outbox
+dispatch that ran every minute of every day.
 
 Two consequences, and both have bitten somebody:
 
