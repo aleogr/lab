@@ -95,15 +95,31 @@ check_job "lab-postgres-start" "$start_cron" "ALWAYS"
 # remainder clause `check-federation.sh` runs on its condition string. A
 # third job nobody declared is exactly what this exists to notice.
 #
-# Matched with `endswith`, not `contains`: a `uri` ending in
+# Matched on a BOUNDARY, not a bare `endswith` and not `contains`. `contains`
+# was rejected first, and the reasoning still holds: a `uri` ending in
 # ".../instances/lab-postgres-replica" contains the substring
 # ".../instances/lab-postgres" as a prefix, so `contains` would misreport a
-# job that targets a different, similarly-named instance as one that
-# targets this one. `endswith`, anchored on the project too, does not.
-extra="$(jq -r --arg p "$project" --arg i "$instance" \
-  '.[] | select((.httpTarget.uri // "") | endswith("/projects/" + $p + "/instances/" + $i))
-       | .name | split("/") | last' <<<"$jobs" \
-  | grep -vx -e "lab-postgres-stop" -e "lab-postgres-start" || true)"
+# job that targets a different, similarly-named instance as one that targets
+# this one. `endswith`, anchored on the project too, fixed that — and paid
+# for it by rejecting every suffixed form: a query string
+# (`?updateMask=settings.activationPolicy`), a trailing slash, a sub-path
+# (`/restart`, or the same instance reached through `/sql/v1beta4/`) all fail
+# `endswith`, so a job using any of them passes uncaught. `test(...)` below
+# keeps `endswith`'s anchor — nothing may precede "/instances/$i" but the
+# project path, so `-replica` still cannot match — while accepting anything
+# that FOLLOWS only if it starts a new path segment, a query string or a
+# fragment (`[/?#]`) or the string simply ends there (`$`), which a
+# `-replica` suffix does not do either.
+extra_raw="$(jq -r --arg p "$project" --arg i "$instance" \
+  '.[] | select((.httpTarget.uri // "") | test("/projects/" + $p + "/instances/" + $i + "($|[/?#])"))
+       | .name | split("/") | last' <<<"$jobs")"
+
+# `|| true` covers only `grep -vx`'s own legitimate exit 1 here — the common
+# case where every job touching the instance is one of the two declared ones,
+# so nothing is left after filtering them out. It does not also cover `jq`
+# above: that call now runs on its own line, under `set -e`, so a `jq`
+# failure still stops the script instead of being swallowed by the same `||`.
+extra="$(grep -vx -e "lab-postgres-stop" -e "lab-postgres-start" <<<"$extra_raw" || true)"
 
 if [ -n "$extra" ]; then
   while IFS= read -r job_name; do
