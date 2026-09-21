@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>lab.aleogr.dev</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fbfbfa; --fg: #1a1a18; --muted: #6b6b66;
+    --line: #e4e4e0; --card: #ffffff;
+    --up: #1a7f4b; --down: #b4322a; --unknown: #8a8a84;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16161a; --fg: #ecece8; --muted: #9a9a94;
+      --line: #2a2a30; --card: #1d1d22;
+      --up: #4cc38a; --down: #e5644f; --unknown: #78787e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 3rem 1rem 4rem; background: var(--bg); color: var(--fg);
+    font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 46rem; margin: 0 auto; }
+  h1 { font-size: 1.5rem; letter-spacing: -0.01em; margin: 0 0 .25rem; }
+  h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em;
+       color: var(--muted); margin: 2.5rem 0 .75rem; font-weight: 600; }
+  p.lede { color: var(--muted); margin: 0 0 1rem; }
+  .card { background: var(--card); border: 1px solid var(--line);
+          border-radius: 10px; padding: 1rem 1.15rem; margin-bottom: .75rem; }
+  .card h3 { margin: 0; font-size: 1rem; display: flex; align-items: baseline; gap: .6rem; }
+  .card p { margin: .35rem 0 .6rem; color: var(--muted); font-size: .9rem; }
+  .dot { width: .6rem; height: .6rem; border-radius: 50%; flex: none;
+         background: var(--unknown); align-self: center; }
+  .dot[data-state="up"] { background: var(--up); }
+  .dot[data-state="down"] { background: var(--down); }
+  .state { font-size: .8rem; color: var(--muted); font-weight: 400; margin-left: auto; }
+  ul { list-style: none; margin: 0; padding: 0; display: flex;
+       flex-wrap: wrap; gap: .4rem .9rem; font-size: .9rem; }
+  a { color: inherit; text-decoration-color: var(--line); text-underline-offset: 3px; }
+  a:hover { text-decoration-color: currentColor; }
+  footer { margin-top: 3rem; color: var(--muted); font-size: .85rem; }
+  code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; }
+  @media (prefers-reduced-motion: no-preference) {
+    .dot { transition: background-color .2s ease; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>lab.aleogr.dev</h1>
+  <p class="lede">Everything under this address is a laboratory. Nothing here is production.</p>
+
+  <h2>Projects</h2>
+  <div id="projects"></div>
+
+  <h2>The shared database</h2>
+  <div class="card">
+    <h3>lab-postgres</h3>
+    <p><code>aleogr-lab-shared-dacd:us-central1:lab-postgres</code> — one PostgreSQL 16
+       instance, one database per project.</p>
+    <p>It runs continuously today. The intention is to let it sleep outside
+       working hours — Saturday and Sunday all day, 08:00–22:00 (UTC−3) on
+       weekdays — and that is not in effect yet. When it is, a project
+       outside the window will answer that its database is unreachable, and
+       that will be expected rather than broken.</p>
+  </div>
+
+  <footer>
+    <a href="https://github.com/aleogr/lab">aleogr/lab</a> — the instance, this page,
+    and the rules that hold across the laboratory.
+  </footer>
+</main>
+
+<script>
+// THE INVENTORY. Edited by hand; there are three projects, not three hundred.
+// `health` is the public endpoint this page reads. A project without one reads
+// as unknown, which is the honest answer and not a failure.
+const PROJECTS = [
+  {
+    name: "marketplace",
+    about: "A multi-tenant marketplace platform.",
+    repository: "https://github.com/aleogr/marketplace",
+    hosts: ["https://marketplace.lab.aleogr.dev"],
+    health: "https://marketplace.lab.aleogr.dev/health",
+  },
+  {
+    name: "schooling",
+    about: "A course platform and its console.",
+    repository: "https://github.com/codeschool-ing/schooling",
+    hosts: [
+      "https://code.schooling.lab.aleogr.dev",
+      "https://my.schooling.lab.aleogr.dev",
+      "https://console.schooling.lab.aleogr.dev",
+      "https://math.schooling.lab.aleogr.dev",
+    ],
+    health: null,
+  },
+];
+
+// THREE STATES, NEVER TWO. "unknown" is what a page says when it could not
+// check — a panel that calls that a failure cries wolf, and one that calls it
+// success hides a fire.
+async function probe(project) {
+  if (!project.health) return { state: "unknown", detail: "no health endpoint" };
+  const stop = new AbortController();
+  const timer = setTimeout(() => stop.abort(), 8000);
+  try {
+    const response = await fetch(project.health, { signal: stop.signal, cache: "no-store" });
+    // An answer that arrived is an answer, whatever shape it came in. Only a
+    // body that parses adds detail; one that does not still tells us the
+    // service replied, and with what status.
+    let body = {};
+    try { body = await response.json(); } catch (_) { /* not JSON, still an answer */ }
+    const parts = [];
+    if (body.database) parts.push(`database ${body.database}`);
+    if (body.version) parts.push(body.version);
+    return response.ok
+      ? { state: "up", detail: parts.join(" · ") }
+      : { state: "down", detail: [String(response.status), ...parts].join(" · ") };
+  } catch {
+    // A cross-origin refusal and an unreachable host are the same rejection
+    // here, and neither of them means the service is down.
+    return { state: "unknown", detail: "could not be read from this page" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Cards are built and appended in inventory order, up front, each starting
+// unknown — a probe updates only its own card in place when it resolves, so
+// the list never reshuffles itself while the network answers arrive.
+function createCard(project) {
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const heading = document.createElement("h3");
+  const dot = document.createElement("span");
+  dot.className = "dot";
+  dot.dataset.state = "unknown";
+  heading.append(dot, project.name);
+
+  const state = document.createElement("span");
+  state.className = "state";
+  state.textContent = "unknown";
+  heading.append(state);
+
+  const about = document.createElement("p");
+  about.textContent = project.about;
+
+  const links = document.createElement("ul");
+  for (const host of project.hosts.concat(project.repository)) {
+    const item = document.createElement("li");
+    const link = document.createElement("a");
+    link.href = host;
+    link.textContent = host.replace(/^https:\/\//, "");
+    item.append(link);
+    links.append(item);
+  }
+
+  card.append(heading, about, links);
+  return { card, dot, state };
+}
+
+function applyStatus(refs, status) {
+  refs.dot.dataset.state = status.state;
+  refs.state.textContent = status.detail ? `${status.state} · ${status.detail}` : status.state;
+}
+
+const container = document.getElementById("projects");
+for (const project of PROJECTS) {
+  const refs = createCard(project);
+  container.append(refs.card);
+  probe(project).then((status) => applyStatus(refs, status));
+}
+</script>
+</body>
+</html>
