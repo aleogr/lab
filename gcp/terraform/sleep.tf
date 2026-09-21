@@ -1,4 +1,15 @@
-/* WHEN THE INSTANCE IS AWAKE, and the only place the expressions live.
+/* WHEN THE INSTANCE IS AWAKE — the schedule itself, and one of the two
+   places the expressions live on purpose, not the only one.
+
+   THE OTHER IS `.github/workflows/ci.yml`'s `check-schedule.sh` invocation,
+   which passes these same two cron strings back as what that script is told
+   to expect. That is not drift, it is deliberate: a check must not read its
+   expectation from the thing it is checking (`check-federation.sh` is the
+   pattern), so `check-schedule.sh` cannot read its expectation out of this
+   file — it would then agree with whatever this file said, always.
+   CHANGING THE WINDOW MEANS CHANGING BOTH, this file and the arguments in
+   `ci.yml`. `docs/lab.md` names both places rather than claiming either is
+   the only one.
 
    Cloud Scheduler calls the Cloud SQL Admin API itself. The alternative
    everybody reaches for — Scheduler to Pub/Sub to a Cloud Function — buys a
