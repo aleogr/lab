@@ -82,8 +82,18 @@ check_job() {
   [ "$state" = "ENABLED" ] || report "$name state" "$state" "ENABLED"
   [ "$policy" = "$want_policy" ] || report "$name activationPolicy" "$policy" "$want_policy"
 
+  # THE SAME BOUNDARY THE EXTRA-JOB SCAN USES, BELOW, not an exact-suffix
+  # glob. This function used to require the uri to END with
+  # "/instances/$instance", which is a stricter reading of "targets this
+  # instance" than the scan's `test(...)`: a declared job whose uri carried a
+  # query string (`?updateMask=settings.activationPolicy`) or a sub-path
+  # would fail this check as a target mismatch while the scan below correctly
+  # counted it as targeting the instance. Two matchers in one file
+  # disagreeing about what "targets this instance" means is its own bug, so
+  # this one now accepts the same boundary set the scan does — see the
+  # comment there for what each character is and why.
   case "$uri" in
-  *"/projects/$project/instances/$instance") : ;;
+  *"/projects/$project/instances/$instance" | *"/projects/$project/instances/$instance"[/?#:\;]*) : ;;
   *) report "$name target" "$uri" "$instance in $project" ;;
   esac
 }
@@ -107,11 +117,35 @@ check_job "lab-postgres-start" "$start_cron" "ALWAYS"
 # `endswith`, so a job using any of them passes uncaught. `test(...)` below
 # keeps `endswith`'s anchor — nothing may precede "/instances/$i" but the
 # project path, so `-replica` still cannot match — while accepting anything
-# that FOLLOWS only if it starts a new path segment, a query string or a
-# fragment (`[/?#]`) or the string simply ends there (`$`), which a
-# `-replica` suffix does not do either.
+# that FOLLOWS only if it starts a new path segment, a query string, a
+# fragment, GCP's own custom-verb separator, or a statement separator
+# (`[/?#:;]` — the Admin API itself uses `:` for verbs like
+# `instances/NAME:failover`, and `;` is a valid path-parameter delimiter in
+# a URI) or the string simply ends there (`$`), which a `-replica` suffix
+# does not do either. `check_job`'s own uri match, above, accepts the same
+# set for the same reason — two matchers in one file must agree on what
+# "targets this instance" means.
+#
+# WHAT THIS STILL DOES NOT CATCH: a uri built with the project NUMBER
+# (`.../projects/123456789012/instances/lab-postgres`) instead of the project
+# id this script is given as `$project`. The Cloud SQL Admin API accepts
+# both forms, so a rogue job addressed by number would target the instance
+# and pass this scan unremarked — a real gap, left open rather than widened,
+# for two reasons. First, every job this repository's own Terraform declares
+# addresses the instance by project id (`sleep.tf` interpolates
+# `var.project_id`, never a number), so the gap only admits a job created
+# out of band, by hand, which is already a bypass of this repository's
+# review — the same class of problem as a console change to any other
+# resource here, and not one a schedule-matching script can close on its
+# own. Second, closing it would mean this script also taking the project
+# NUMBER as an argument, which nothing else here needs to know and which
+# would have to come from `data.google_project.current.number` in Terraform
+# — a second expectation this check would then be trusting from the thing
+# it verifies, in spirit if not in the letter of the Global Constraint above.
+# A manually created scheduler job is also the kind of change Cloud Audit
+# Logs records regardless of what this script catches.
 extra_raw="$(jq -r --arg p "$project" --arg i "$instance" \
-  '.[] | select((.httpTarget.uri // "") | test("/projects/" + $p + "/instances/" + $i + "($|[/?#])"))
+  '.[] | select((.httpTarget.uri // "") | test("/projects/" + $p + "/instances/" + $i + "($|[/?#:;])"))
        | .name | split("/") | last' <<<"$jobs")"
 
 # `|| true` covers only `grep -vx`'s own legitimate exit 1 here — the common
