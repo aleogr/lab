@@ -195,6 +195,18 @@ git add gcp/terraform/sleeper.tf
 git commit -m "Give the schedule an identity of its own"
 ```
 
+**Not a step of its own, and not scope creep: `f5fe14a`.** Creating
+`google_service_account.sleeper` above needs `iam.serviceAccounts.create`,
+which none of the deploy identity's three declared roles carry. `deployer@`
+already held `roles/iam.serviceAccountAdmin` on the live project — granted by
+hand at bootstrap, the same way `workloadIdentityPoolAdmin` and `roleAdmin`
+were — but `deployer.tf` and `README.md` had never caught up to that grant,
+because an undeclared permission that is already held stays silent: nothing
+fails, so nothing asks. `sleeper.tf` is the first resource in this repository
+to actually need it, which surfaced the gap by luck rather than by process.
+`f5fe14a` declares the grant this task's own Step 1 depends on; it belongs on
+this branch because Task 2 is what needed it, not because Task 2 asked for it.
+
 ---
 
 ## Task 3: The schedule — DONE, `82c64fa`, Step 3 corrected in `ebb2017`
@@ -382,6 +394,32 @@ The region is an argument rather than a default because Cloud Scheduler is a reg
   misreported as targeting `lab-postgres`). Same checks, same argument
   contract, same two job names.
 
+  **A third difference, larger than the first two and not previously
+  recorded here:** the whole reporting mechanism changed. The draft below has
+  `fail()` write `NOT AS DESIGNED: <message>` to stderr and set a flag; the
+  shipped script has `report()` write aligned columns
+  (`printf '%-34s %s, want %s\n'`) to stdout and count `failures`, ending in
+  a `"$failures mismatch(es)..."` summary the draft never printed. This is
+  the same fixture exercise that found the first two differences, and it is
+  why Step 4 below originally quoted an "Expected" line that never shipped —
+  corrected there.
+
+  **A fourth difference, later than the other three and later than this
+  record was last written:** `cb0248f` replaced the extra-job scan's
+  `endswith` match — the one lines 392-393 above still describe as what
+  shipped in `65b632a` — with the boundary `test(...)` the live file now
+  carries. `endswith`, anchored on the project too, still rejected
+  `-replica`, but it also rejected every legitimate suffix: a query string, a
+  trailing slash, a sub-path — so a rogue job reached through any of those
+  forms passed uncaught. The boundary regex accepts anything that starts a
+  new path segment, a query string, a fragment, or (added in the re-review
+  that found this paragraph itself stale) GCP's own custom-verb separator or
+  a statement separator, while `-replica` still cannot match any of them.
+  Lines 392-393 are left describing `endswith`, deliberately, because that is
+  what `65b632a` shipped and this is a draft-to-shipped record of that
+  commit; `cb0248f` is a later commit correcting the shipped script further,
+  not a correction of what this paragraph says `65b632a` did.
+
 Create `gcp/tools/check-schedule.sh`, `chmod +x`:
 
 ```sh
@@ -511,7 +549,10 @@ cd /tmp/lab-check && git checkout claude/lab-sleep
 echo "exit: $?"
 ```
 
-Expected: `NOT AS DESIGNED: the job 'lab-postgres-stop' does not exist`, the same for `lab-postgres-start`, and `exit: 1`.
+Expected (shipped format — `report()`'s aligned columns, not the draft's
+`fail()`; see Step 1's note on the third draft-to-shipped difference):
+`lab-postgres-stop                  does not exist, want to exist`, the same
+for `lab-postgres-start`, a `"2 mismatch(es)..."` summary line, and `exit: 1`.
 
 **Collected, 2026-09-21, against the live project, schedule not yet applied:**
 
@@ -537,7 +578,7 @@ git commit -m "Ask the live project whether the schedule is the designed one"
 
 ---
 
-## Task 5: Say it in the laboratory's own words
+## Task 5: Say it in the laboratory's own words — DONE, `fa54ff8`
 
 **Files:**
 - Modify: `docs/lab.md` — the section "When the instance is awake"
@@ -548,9 +589,18 @@ git commit -m "Ask the live project whether the schedule is the designed one"
 
 `docs/lab.md` currently opens that section with "**Not yet — the instance runs continuously today.**" That stops being true when this merges and applies.
 
-- [ ] **Step 1: Rewrite the section**
+- [x] **Step 1: Rewrite the section** — done, `fa54ff8`. **Corrected since:**
+  the shipped paragraph claimed the two cron expressions "appear nowhere else
+  in this repository", which was false the day it shipped —
+  `.github/workflows/ci.yml` passes the same two expressions to
+  `check-schedule.sh` as its expectation, deliberately, per the Global
+  Constraint that a check must not read its expectation from the thing it
+  checks. A later commit on this branch rewrites both this section and the
+  2026-09-21 spec's D4 and Risks section to say the expressions live in
+  exactly two places on purpose, name both, and say that changing the window
+  means changing both.
 
-The division the spec settles: this file carries the **policy**, `sleep.tf` carries the **expressions**, and a cron appears exactly once in the repository. Keep the two consequences that follow the section — the backup window and the missing transaction log — untouched; both are still true and neither depends on this change.
+The division the spec settles: this file carries the **policy**, `sleep.tf` carries the **expressions**. **This is the note that found the contradiction fixed above, and this sentence is what it was contradicting:** the paragraph two steps above already says a later commit rewrote this section to say the expressions live in two operative places on purpose, naming both; the instruction below has to match that, not the disproven "appears nowhere else" claim it replaced. Keep the two consequences that follow the section — the backup window and the missing transaction log — untouched; both are still true and neither depends on this change.
 
 Replace the opening paragraph — the one beginning "**Not yet — the instance runs continuously today.**" — with this:
 
@@ -566,9 +616,14 @@ answer the moment it is asked to: measured on 2026-09-21, it took 686 seconds
 — eleven and a half minutes — from the start command to `/health` reporting
 `database: ok`.
 
-`gcp/terraform/sleep.tf` holds the two cron expressions, and they appear
-nowhere else in this repository — this section is the policy, that file is the
-schedule.
+The two cron expressions live in two operative places that must be kept in
+step, on purpose, outside the design documents that quote them for
+reference: `gcp/terraform/sleep.tf`, the schedule itself, and the
+`check-schedule.sh` invocation in `.github/workflows/ci.yml`, which is what
+that script is told to expect. The second copy is not drift — it exists
+because a check must not read its expectation from the thing it is checking.
+**Changing the window means changing both operative places**, `sleep.tf` and
+the arguments in `ci.yml`.
 
 **A tenant whose own work runs at night moves it, in its own repository.**
 This project does not reach into a tenant's Cloud Scheduler for the same
@@ -577,7 +632,7 @@ jobs for exactly this reason: an audit walk that ran at 01:17, and an outbox
 dispatch that ran every minute of every day.
 ```
 
-- [ ] **Step 2: Reconcile the three documents Task 1's measurement invalidated**
+- [x] **Step 2: Reconcile the three documents Task 1's measurement invalidated** — done, `fa54ff8`.
 
 Moving the start from 07:45 to 07:30 left `07:45` standing in three places that
 are not historical records, and one of them is a promise this repository made
@@ -605,16 +660,74 @@ The third is the interesting one. That sentence was added to stop a reader
 treating a stale quote as a competing decision — and it was written as though
 quoted content could stay current forever, which nothing can.
 
-- [ ] **Step 3: Check nothing else still says it is not in effect**
+- [x] **Step 3: Check nothing else still says it is not in effect** — done,
+  `fa54ff8`, but **the sweep as shipped could not and did not reach
+  everything, and both misses were found later, not by this step:**
+
+  - **The `site` branch's public page (C2).** The command below only ever
+    grepped `--include='*.md' --include='*.tf'` in the working tree. The
+    page this task's own prose points at — "the live page on the `site`
+    branch also says 'that is not in effect yet'" — is `index.html` on an
+    **orphan branch**, which is neither an `.md`/`.tf` file nor in this
+    branch's working tree. That combination is structurally invisible to
+    the command as shipped; it could not have found the page's stale hour
+    (07:45, moved to 07:30 the same day, in commit `ac48128`) no matter how
+    carefully it was read. Fixed below by adding `--include='*.html'` and an
+    explicit `git show site:index.html` pass, which is the only way to reach
+    a file that lives on a branch this one never checks out.
+  - **The 2026-09-20 spec's status line (C3).** The acceptance rule below
+    exempted "a dated historical record in `docs/superpowers/`", and the
+    2026-09-20 spec's status line matched that exemption's location without
+    meeting its purpose: that document itself says its status line "says
+    what the world has since done, not why" — a live tracker, not a record
+    of what was true on the date in the filename. The rule as written let a
+    line that will go stale the moment `aleogr/lab` merges pass as though it
+    were dated history. Narrowed below.
+  - **This design's own status line and opening paragraph (found in
+    re-review, after this step shipped).** `grep` matches line by line, and
+    this document's own opening wrapped the phrase across a line break — "...
+    now says, correctly, that it is not in\neffect." — with "not in" ending
+    one line and "effect." starting the next. The pattern
+    `"not in effect"` cannot match text no single line contains, so this
+    sweep walked past the exact sentence its own prose most needed to catch,
+    in the file it was written in. Line-wrapped prose is invisible to a
+    line-by-line grep on principle, not by bad luck here, and nothing about
+    C2 or C3's fixes touches that. Fixed below by joining each file's lines
+    before matching, so a phrase wrapped by hand cannot hide from a pattern
+    written on one line.
 
 ```sh
 grep -rn -iE "not in effect|runs continuously|four weeknight|22:00|07:30" \
-  --include='*.md' --include='*.tf' . | grep -v '^./.superpowers'
+  --include='*.md' --include='*.tf' --include='*.html' . \
+  | grep -v '^./.superpowers'
+
+# THE PASS ABOVE IS LINE-BY-LINE AND MISSES A PHRASE WRAPPED ACROSS A LINE
+# BREAK, which is exactly how this design's own opening paragraph hid from
+# it once. Join each file's lines into one before matching, so wrapping
+# cannot hide a phrase from a pattern that names it whole.
+grep -rlZ --include='*.md' --include='*.tf' --include='*.html' -e . . \
+  | grep -vz '^./.superpowers' \
+  | xargs -0 -I{} sh -c 'tr "\n" " " < "{}" | grep -inE -o ".{0,40}(not in effect|runs continuously|four weeknight).{0,40}" && echo "  in: {}"'
+
+git show site:index.html | grep -n -iE "not in effect|runs continuously|four weeknight|22:00|07:4|07:3"
+git show site:index.html | tr '\n' ' ' | grep -inE -o ".{0,40}(not in effect|runs continuously|four weeknight).{0,40}"
 ```
 
-Every hit must either be the new prose, the expressions in `sleep.tf`, or a dated historical record in `docs/superpowers/`. The live page on the `site` branch also says "that is not in effect yet" — it is **not** in this task and **not** in this pull request. Publishing it is the owner's act, and it happens after the first night the schedule actually runs, not before.
+Every working-tree hit must either be the new prose, the expressions in
+`sleep.tf`, or a genuinely dated historical record — a passage that describes
+what was true **on the date in its own filename or heading**, not a status
+line that is written to track the present and will go stale on somebody
+else's merge; `docs/superpowers/` alone does not make a line historical. The
+`git show site:index.html` pass must show either the corrected hour with "not
+in effect yet" still standing, or nothing — never a hit that this sweep
+silently skipped because the file lives outside the working tree. The live
+page on the `site` branch keeps saying "that is not in effect yet": that
+sentence is **not** in this task and **not** in this pull request, and stays
+true until the first night the schedule actually runs. Only its hour, a
+separate and already-stale fact, is this session's to correct, on the `site`
+branch, unpushed.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit** — done, `fa54ff8`.
 
 ```bash
 git add docs/lab.md docs/superpowers/specs/2026-09-21-lab-home-design.md \
@@ -624,7 +737,7 @@ git commit -m "Say that the instance now really does sleep"
 
 ---
 
-## Task 6: Move the marketplace's nightly work out of the window
+## Task 6: Move the marketplace's nightly work out of the window — DONE, `faed8f4`, documentation fallout corrected in `043ae57` and `cf6a25e`
 
 **Repository: `aleogr/marketplace`. Branch: `claude/funny-wright-379asb-labwindow`, from `main`.**
 
@@ -638,13 +751,13 @@ git commit -m "Say that the instance now really does sleep"
 - Consumes: the window, as policy, from `docs/lab.md` in `aleogr/lab`.
 - Produces: nothing other tasks read.
 
-- [ ] **Step 1: Move `verify-audit-chain`**
+- [x] **Step 1: Move `verify-audit-chain`** — done, `faed8f4`.
 
 `infra/terraform/audit.tf` line 57 reads `schedule = "17 4 * * *"` with `time_zone = "Etc/UTC"` — 04:17 UTC, which is 01:17 local, inside the window. Change the schedule to `"17 12 * * *"`, leaving the time zone as `Etc/UTC`: 12:17 UTC is 09:17 local, comfortably inside the working day.
 
 Extend the comment above the resource with a sentence saying the hour is not free to move: it sits inside the laboratory's awake window, which `aleogr/lab` publishes in `docs/lab.md`.
 
-- [ ] **Step 2: Move `dispatch-outbox`**
+- [x] **Step 2: Move `dispatch-outbox`** — done, `faed8f4`.
 
 `infra/terraform/tasks.tf` lines 113–114 read `schedule = "* * * * *"` and `time_zone = "Etc/UTC"`. Change to:
 
@@ -669,7 +782,7 @@ Extend the comment above the resource:
   # unreachable hides a genuine outage exactly as well as a planned one.
 ```
 
-- [ ] **Step 3: Run the checks**
+- [x] **Step 3: Run the checks** — done, `faed8f4`.
 
 ```sh
 make check
@@ -678,11 +791,19 @@ make test
 
 Expected: both clean. Neither touches Terraform, but a comment edit that broke a Go build would be found here, and `make check` runs `terraform fmt` through its own path — if it does not, run `terraform -chdir=infra/terraform fmt -check -recursive` as well.
 
-- [ ] **Step 4: Record it where the marketplace explains itself**
+- [x] **Step 4: Record it where the marketplace explains itself** — done,
+  `faed8f4`. **Corrected twice since it shipped, neither correction a
+  revision of this step's own work:** `043ae57` fixed a stale `07:45` and
+  removed a "not in effect yet" status claim this paragraph did not itself
+  add but sat beside, in favour of naming `docs/lab.md` as the authority for
+  whether the window is currently in effect. `cf6a25e` reframed a nearby
+  runbook sentence ("the dispatcher runs every minute") that this step's own
+  `dispatch-outbox` change had made false, around the job's own hours rather
+  than the instance's sleep status. Both are corrections this step's
+  neighbours needed once the window it documents actually shipped.
 
-In `docs/infrastructure.md`, in the section that already explains the noon backup window and the sleep window, add a short paragraph naming both jobs, their new hours, and the rule: the laboratory publishes the window, and this project arranges its own scheduled work around it. Say that the window's authority is `docs/lab.md` in `aleogr/lab` and that these two expressions are derived from it, so a change to the window is a change here.
-
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit** — done, `faed8f4`, "Keep the nightly jobs out of the
+  window the instance sleeps in".
 
 ```bash
 git add infra/terraform/audit.tf infra/terraform/tasks.tf docs/infrastructure.md
@@ -691,7 +812,7 @@ git commit -m "Keep the nightly jobs out of the window the instance sleeps in"
 
 ---
 
-## Task 7: Refuse to deploy into a sleeping instance, legibly
+## Task 7: Refuse to deploy into a sleeping instance, legibly — DONE, `d4776ca`
 
 **Repository: `aleogr/marketplace`, same branch as Task 6.**
 
@@ -705,7 +826,11 @@ git commit -m "Keep the nightly jobs out of the window the instance sleeps in"
 
 **One check is enough, and this is why.** `deploy.yml` runs on `workflow_run` from Terraform with `if: github.event.workflow_run.conclusion == 'success'`. A Terraform run that fails therefore stops the deployment too. And the apply job authenticates as `terraform@`, which holds `sqlTenant`, which includes `cloudsql.instances.get` — so it can read the instance's state without any new grant. The spec described two workflows failing legibly; one check placed here does both.
 
-- [ ] **Step 1: Add the step**
+- [x] **Step 1: Add the step** — done, `d4776ca`. The shipped comment is
+  worded more fully than the draft below — it adds why the check lives here
+  rather than in `deploy.yml` and closes with "this step reads and refuses;
+  it does not wake anything" — but the step's logic, its two-word invariant
+  (read, then refuse) and its message match this step exactly.
 
 In `.github/workflows/terraform.yml`, in the `apply` job, between "Initialise" and "Apply":
 
@@ -737,7 +862,8 @@ In `.github/workflows/terraform.yml`, in the `apply` job, between "Initialise" a
           fi
 ```
 
-- [ ] **Step 2: Exercise both branches of the condition locally**
+- [x] **Step 2: Exercise both branches of the condition locally** — done,
+  `d4776ca`.
 
 The step is shell, so test it as shell, with the `gcloud` call replaced by each answer it can give:
 
@@ -753,7 +879,8 @@ done
 
 Expected: `ALWAYS` → `would apply`, `exit: 0`. `NEVER` → `would fail`, `exit: 1`.
 
-- [ ] **Step 3: Check the tfvars parsing against the real file**
+- [x] **Step 3: Check the tfvars parsing against the real file** — done,
+  `d4776ca`.
 
 ```sh
 grep -E '^\s*shared_project_id\s*=' infra/terraform/lab/lab.tfvars \
@@ -762,7 +889,9 @@ grep -E '^\s*shared_project_id\s*=' infra/terraform/lab/lab.tfvars \
 
 Expected: exactly `aleogr-lab-shared-dacd`, one line, no quotes.
 
-- [ ] **Step 4: Confirm the workflow still parses**
+- [x] **Step 4: Confirm the workflow still parses** — done, `d4776ca`.
+  `actionlint` was installed in none of this session's sandboxes; recorded as
+  an unrun check rather than a passed one.
 
 ```sh
 python3 -c "import yaml,sys; yaml.safe_load(open('.github/workflows/terraform.yml')); print('valid')"
@@ -771,7 +900,8 @@ actionlint .github/workflows/terraform.yml   # if actionlint exists in this sand
 
 `actionlint` is installed in none of this session's sandboxes. If it is missing, say so in the pull request as an unrun check.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit** — done, `d4776ca`, "Say why an apply failed when the
+  instance is asleep".
 
 ```bash
 git add .github/workflows/terraform.yml
@@ -784,7 +914,28 @@ git commit -m "Say why an apply failed when the instance is asleep"
 
 **Files:** none.
 
-- [ ] **Step 1: Push both branches**
+- [x] **Step 1: Push both branches** — done, and **this record was stale**:
+  it said both branches sat at their pre-fix-wave SHAs, that this wave's own
+  commits were not pushed, and that no pull request existed for either. All
+  three were false by the time of the re-review that corrects this
+  paragraph, checked directly against GitHub rather than assumed:
+  `claude/funny-wright-379asb-labwindow` is on `origin` at `7b05592`;
+  `claude/lab-sleep` is on `origin` at `8c61cba` — both include this fix
+  wave's own commits, already pushed.
+
+  **A pull request exists for each, and their histories diverged.**
+  `aleogr/marketplace#67` carries all six of that repository's commits —
+  Tasks 6 and 7's four (`faed8f4`, `043ae57`, `cf6a25e`, `d4776ca`) plus this
+  wave's two (`e59383f`, `7b05592`) — and is **merged**, its head at exactly
+  `7b05592`, every check green. `aleogr/lab#10` **merged earlier**, at
+  `36e2989`, which is *before* this wave's four commits on `claude/lab-sleep`
+  (`149ee99`, `c5cd7ba`, `cb0248f`, `8c61cba`) existed — so those four are
+  pushed to `origin` and sit on the branch, but are not part of `#10` or of
+  any other pull request, open or closed. A pull request built on this
+  session's own further changes to `claude/lab-sleep` would need to be a new
+  one; `#10` cannot receive them by re-opening. Neither the `site` branch nor
+  its own pull request status changed; publishing `site` is still the
+  owner's act (C2).
 
 ```bash
 git -C <marketplace> push -u origin claude/funny-wright-379asb-labwindow

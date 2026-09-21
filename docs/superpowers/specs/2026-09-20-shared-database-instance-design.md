@@ -2,8 +2,12 @@
 
 Status, 2026-09-21: Phase 1 is implemented — the `marketplace` database, its
 roles, grants and connection ceiling are live on `lab-postgres`. `schooling`
-has not moved and the sleep schedule below is not in effect; both remain
-Plan 2.
+has not moved and remains Plan 2. Whether the sleep schedule below is in
+effect is not this line's to assert: it flips on `aleogr/lab`'s own merge and
+apply, which this repository does not control and cannot watch. `docs/lab.md`
+in `aleogr/lab` is the authority for the window and for whether it is
+currently in effect, the same way `aleogr/marketplace`'s own documentation
+defers to it.
 
 This design covers two changes made together because they interact: moving the
 lab databases of `marketplace` and `schooling` onto one shared Cloud SQL
@@ -44,7 +48,7 @@ credit **expires on 8 November 2026** rather than running out — at this burn i
 would last over a year. So there is a date, not a shortage, and the work is
 cheap to get wrong before it.
 
-The target is **R$ 44 per month**: one instance awake 556 hours a month, one
+The target is **R$ 45 per month**: one instance awake 566 hours a month, one
 10 GiB disk.
 
 ## Decisions
