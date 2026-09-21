@@ -9,11 +9,14 @@ project lives in that project.
 `lab-postgres` holds a laboratory. The day one of them becomes production, it
 leaves.
 
+See `docs/superpowers/specs/2026-09-20-shared-database-instance-design.md` for
+why, including what this arrangement does *not* protect against.
+
 ## Names
 
 | | |
 |---|---|
-| Project | `aleogr-<product>-<environment>-<4 random>` — ids are immutable and a deleted one never returns, so everything that cannot be fixed later is in the name from the start |
+| Project | `aleogr-lab-<product>-<4 random>`, `aleogr-prd-<product>-<4 random>` — environment first, so every laboratory and every production project sorts together in the console and in `gcloud projects list`, putting the thing you must not confuse at the front of the name. Ids are immutable and a deleted one never returns, so everything that cannot be fixed later is in the name from the start |
 | Shared project | `aleogr-lab-shared-<4 random>` |
 | Shared instance | `lab-postgres` — named for what it is, never for the first project that used it |
 | Database | the project's own name |
@@ -21,7 +24,13 @@ leaves.
 
 ## When the instance is awake
 
-Saturday and Sunday all day; Monday to Friday from 08:00 to 22:00, UTC−3.
+**Not yet — the instance runs continuously today.** Plan 2 puts it to sleep on
+four weeknights only, Monday through Thursday, from 22:00 to 07:45 local
+(UTC−3); 07:45 rather than 08:00 because a stopped instance takes a minute or
+two to accept connections. Friday night and the whole weekend stay awake: two
+hours until Saturday is not worth a stop and a start, and the same risk holds
+for Sunday night, which would leave the database dying at midnight while
+somebody is working.
 
 Two consequences, and both have bitten somebody:
 
@@ -43,3 +52,10 @@ create and alter its own database and its own users, and nothing else: no
 and not per database. What keeps one laboratory's data away from another's is
 the database grant: `CONNECT` revoked from `PUBLIC` and given by name, with a
 connection ceiling computed from that project's own pools.
+
+That protection has a limit worth stating rather than implying away: a user
+created by `gcloud sql users create` belongs to `cloudsqlsuperuser`, and a
+member of that role can grant itself back the `CONNECT` this revokes. The
+grant and the ceiling guard against **accident** — a runaway CI job, a
+mistyped connection string — not against deliberate action from inside.
+Between laboratories that share one owner, that is the accepted trade.

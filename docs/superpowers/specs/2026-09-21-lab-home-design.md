@@ -1,7 +1,7 @@
 # The lab has a home
 
 **Date:** 2026-09-21
-**Status:** agreed, not yet implemented
+**Status:** implemented; the page is public at `https://lab.aleogr.dev` (2026-09-21)
 
 `lab.aleogr.dev` is the address every laboratory project already lives under —
 `marketplace.lab.aleogr.dev`, `code.schooling.lab.aleogr.dev`,
@@ -204,9 +204,9 @@ addresses and the site serves. A CNAME is also what GitHub documents for a
 earlier reasoning had reached for the record GitHub recommends for the wrong
 shape of name.
 
-The zone is on Cloudflare and every one of its 27 records is **DNS only**, with
-no proxying — which is what lets GitHub issue its certificate. Nothing in the
-zone's posture had to change to add the CNAME.
+The zone is on Cloudflare, and nothing in it is proxied — which is what lets
+GitHub issue its certificate. Nothing in the zone's posture had to change to
+add the CNAME.
 
 **A records to GitHub's published addresses remain the fallback** if the CNAME
 ever has to go — read from GitHub's documentation at the moment of applying,

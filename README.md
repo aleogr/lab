@@ -83,11 +83,3 @@ waiting to be told which permission is missing.
 
 **IAM changes take a few minutes to propagate.** A run started immediately
 after a grant can still be refused; that is not a second missing permission.
-
-## The rule that decides what may live here
-
-**Consolidate by environment, never across environments.** Every database in
-this instance holds a lab. The day one of them becomes production it leaves.
-
-See `docs/superpowers/specs/2026-09-20-shared-database-instance-design.md` for
-why, including what this arrangement does *not* protect against.

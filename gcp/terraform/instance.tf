@@ -36,10 +36,11 @@ resource "google_sql_database_instance" "shared" {
       enabled = true
 
       # NOON UTC, AND THE HOUR IS THE WHOLE POINT. A stopped instance runs no
-      # automated backup, and this instance is stopped from 22:00 to 07:45
-      # local on weeknights. A backup window in the small hours would mean both
-      # projects quietly stopped having daily backups — no error, nothing to
-      # notice, just an absence.
+      # automated backup, and Plan 2 will stop this instance from 22:00 to
+      # 07:45 local on Monday, Tuesday, Wednesday and Thursday nights. A
+      # backup window in the small hours would mean both projects quietly
+      # stopped having daily backups — no error, nothing to notice, just an
+      # absence.
       start_time = "12:00"
 
       point_in_time_recovery_enabled = true
