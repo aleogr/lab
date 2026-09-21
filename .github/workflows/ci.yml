@@ -8,6 +8,9 @@ on:
   push:
     branches: [main]
 
+# Deny by default at the workflow level; each job asks for what it uses.
+permissions: {}
+
 jobs:
   # ONE JOB PER PROVIDER, and the directory is the boundary. A second provider
   # is a second job over its own directory, with its own state and its own
