@@ -3,7 +3,7 @@
    IT DOES NOT SCALE TO ZERO, which is why it sleeps instead. Cloud Run costs
    nothing while nobody is reading; this is charged by the hour whether or not
    anybody is, and it is the whole standing cost of both projects. The schedule
-   that stops it on weeknights is Plan 2.
+   that stops it on weeknights is `sleep.tf`.
 
    THE EDITION IS SAID OUT LOUD. Left out, the API picks ENTERPRISE_PLUS, where
    shared-core tiers do not exist at all, and refuses `db-f1-micro` with a
@@ -27,6 +27,13 @@ resource "google_sql_database_instance" "shared" {
 
     deletion_protection_enabled = true
 
+    # `activation_policy` IS ABSENT ON PURPOSE. It is the one setting this
+    # file does not own: `sleep.tf` changes it four times a week, and CI
+    # applies this configuration on every merge to main. A line here naming
+    # ALWAYS would wake the instance whenever somebody shipped a
+    # documentation fix, and the schedule would lose to Terraform every time.
+    # Completing this block by adding it would silently disable the schedule.
+
     disk_type             = "PD_SSD"
     disk_size             = var.database_disk_size
     disk_autoresize       = true
@@ -37,7 +44,7 @@ resource "google_sql_database_instance" "shared" {
 
       # NOON UTC, AND THE HOUR IS THE WHOLE POINT. A stopped instance runs no
       # automated backup, and Plan 2 will stop this instance from 22:00 to
-      # 07:45 local on Monday, Tuesday, Wednesday and Thursday nights. A
+      # 07:30 local on Monday, Tuesday, Wednesday and Thursday nights. A
       # backup window in the small hours would mean both projects quietly
       # stopped having daily backups — no error, nothing to notice, just an
       # absence.
