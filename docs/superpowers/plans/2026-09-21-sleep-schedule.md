@@ -298,18 +298,30 @@ the start. Change 07:45 to 07:30 and leave the rest of that comment alone — it
 argument, that a backup window in the small hours would silently stop producing
 backups, does not depend on the minute.
 
-- [ ] **Step 3: Record why `activation_policy` is not in `instance.tf`**
+- [ ] **Step 3: Make Terraform ignore `activation_policy`, and say why**
 
-In `gcp/terraform/instance.tf`, inside the `settings` block, immediately after the `deletion_protection_enabled` line, add:
+**This step was revised after it first shipped.** The original instruction
+here was to leave `activation_policy` out of the `settings` block and add a
+comment saying the omission was deliberate. That shipped, and it does not do
+what it was written to do: `activation_policy` is Optional but not Computed in
+provider 8.3.0's own schema (`terraform providers schema -json`), unlike
+`edition` and `disk_type` beside it, and a plan run against a state carrying
+`NEVER` — the instance stopped for the night — proposed `NEVER -> ALWAYS` as
+an in-place update, with the field still absent from config. Omitting the
+field is not the same as telling Terraform to ignore it. D2 in the design
+records this in full; this step now matches what D2 actually specifies.
 
-```hcl
-    # `activation_policy` IS ABSENT ON PURPOSE. It is the one setting this
-    # file does not own: `sleep.tf` changes it four times a week, and CI
-    # applies this configuration on every merge to main. A line here naming
-    # ALWAYS would wake the instance whenever somebody shipped a
-    # documentation fix, and the schedule would lose to Terraform every time.
-    # Completing this block by adding it would silently disable the schedule.
-```
+In `gcp/terraform/instance.tf`, on `google_sql_database_instance.shared`, add
+a `lifecycle { ignore_changes = [settings[0].activation_policy] }` block, with
+a comment above it carrying: that `sleep.tf` owns this field and nothing else
+does; that omission was tried first and does not work, with the schema finding
+and the reproduced plan that proves it; what an unpatched apply would have
+cost (CI applies on every merge to `main`, and `check-instance.sh` does not
+read this field, so a merge inside the window would have woken the instance
+in silence); and the trade `ignore_changes` accepts — Terraform manages this
+field in neither direction now, so an instance stopped by hand and forgotten
+stays stopped, which is deliberate because `check-schedule.sh` (Task 4) is
+what verifies the schedule, not this file.
 
 - [ ] **Step 4: Check it is well-formed**
 

@@ -27,13 +27,6 @@ resource "google_sql_database_instance" "shared" {
 
     deletion_protection_enabled = true
 
-    # `activation_policy` IS ABSENT ON PURPOSE. It is the one setting this
-    # file does not own: `sleep.tf` changes it four times a week, and CI
-    # applies this configuration on every merge to main. A line here naming
-    # ALWAYS would wake the instance whenever somebody shipped a
-    # documentation fix, and the schedule would lose to Terraform every time.
-    # Completing this block by adding it would silently disable the schedule.
-
     disk_type             = "PD_SSD"
     disk_size             = var.database_disk_size
     disk_autoresize       = true
@@ -75,6 +68,37 @@ resource "google_sql_database_instance" "shared" {
       name  = "cloudsql.iam_authentication"
       value = "on"
     }
+  }
+
+  # `activation_policy` IS IGNORED, NOT ABSENT, and this block is the second
+  # attempt. `sleep.tf` owns this field and nothing else does.
+  #
+  # THE FIRST ATTEMPT WAS TO LEAVE THE LINE OUT OF `settings`, on the theory
+  # that an unset field is an unmanaged one. It is not. Unlike `edition` and
+  # `disk_type` above, `activation_policy` is Optional but not Computed in
+  # the provider's own schema — checked directly with
+  # `terraform providers schema -json` against provider 8.3.0 — and the
+  # provider fills an absent value in with ALWAYS rather than leaving it
+  # alone. A plan run against a state whose `activation_policy` was `NEVER`
+  # — the instance stopped for the night, reproduced by hand against the
+  # same provider — proposed `NEVER -> ALWAYS`, in place, every time.
+  #
+  # WHAT THAT WOULD HAVE COST: CI applies this configuration on every merge
+  # to main. A documentation fix merged at 23:00 on a Tuesday would have
+  # woken the instance back up, and `check-instance.sh` would have passed
+  # immediately afterwards, because it does not read this field. The
+  # schedule would have lost to Terraform in silence, four nights a week,
+  # and nothing here would have said so.
+  #
+  # THE TRADE THIS ACCEPTS: with `ignore_changes`, Terraform never manages
+  # this field again, in either direction. An instance stopped by hand and
+  # forgotten stays stopped; no apply will wake it back up on its own. That
+  # is deliberate, not an oversight — the schedule in `sleep.tf` is what
+  # decides whether the instance is awake, and `check-schedule.sh` is what
+  # verifies the schedule matches the design. This block does not verify
+  # anything, and is not meant to.
+  lifecycle {
+    ignore_changes = [settings[0].activation_policy]
   }
 
   depends_on = [google_project_service.enabled]
