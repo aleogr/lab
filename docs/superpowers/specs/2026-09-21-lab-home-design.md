@@ -165,8 +165,9 @@ failure cries wolf; one that calls it success hides a fire. The third state is
 what prevents both lies, and it is what makes the panel worth looking at in six
 months.
 
-The case that will occur every weeknight: from 22:00 to 08:00 the instance
-sleeps, Cloud Run keeps serving, and `/health` answers **503 with
+The case that will occur Monday through Thursday nights, once Plan 2's
+schedule is in effect: from 22:00 to 07:45 the instance sleeps, Cloud Run
+keeps serving, and `/health` answers **503 with
 `"database":"unreachable"`**. The page shows what `/health` said, and shows the
 working window beside it so the reading takes one glance. It does **not** assert
 that the instance is asleep. It does not know that; it knows what the service
