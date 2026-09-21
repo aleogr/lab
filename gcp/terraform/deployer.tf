@@ -90,6 +90,29 @@ resource "google_project_iam_member" "deployer_roles" {
   role    = "roles/iam.roleAdmin"
   member  = "serviceAccount:${google_service_account.deployer.email}"
 }
+
+# AND THE SERVICE ACCOUNTS THIS CONFIGURATION CREATES. `sleeper` (sleeper.tf)
+# is the first; there will be others. Creating one needs
+# `iam.serviceAccounts.create`, which none of the four roles above carries:
+# `cloudsql.admin` and `roleAdmin` do not touch service-account lifecycle,
+# `workloadIdentityPoolAdmin` is scoped to pools, and `projectIamAdmin` says
+# who may HOLD a role and grants no `iam.serviceAccounts.*` at all.
+#
+# It is also granted by hand once, for the same chicken-and-egg reason as the
+# two bindings above.
+#
+# IT WAS GRANTED BY HAND AND THEN NEVER DECLARED, and README.md said it was.
+# A grant that exists is silent — nothing fails, so nothing asks — and this
+# one went unnoticed until `sleeper` became the first resource in this
+# repository to actually need it, which is luck rather than process. The
+# declaration below is what keeps that true of a project rebuilt from this
+# code, which is the whole reason the other two are declared as well.
+resource "google_project_iam_member" "deployer_service_accounts" {
+  project = var.project_id
+  role    = "roles/iam.serviceAccountAdmin"
+  member  = "serviceAccount:${google_service_account.deployer.email}"
+}
+
 data "google_project" "current" {
   project_id = var.project_id
 }

@@ -68,8 +68,9 @@ gcloud projects add-iam-policy-binding "$PROJECT" \
   --member="$SA" --role=roles/iam.roleAdmin --condition=None
 ```
 
-The last three are also declared in `deployer.tf`, and the first deliberately is
-not: a `google_storage_bucket_iam_member` would have Terraform managing the
+`workloadIdentityPoolAdmin`, `serviceAccountAdmin` and `roleAdmin` are also
+declared in `deployer.tf`, and `storage.objectAdmin` deliberately is not: a
+`google_storage_bucket_iam_member` would have Terraform managing the
 access it needs in order to run, so a `terraform destroy` would revoke its own
 reach to the state halfway through its own execution.
 
