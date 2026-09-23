@@ -62,11 +62,13 @@
     <h3>lab-postgres</h3>
     <p><code>aleogr-lab-shared-dacd:us-central1:lab-postgres</code> — one PostgreSQL 16
        instance, one database per project.</p>
-    <p>It runs continuously today. The intention is to let it sleep four
-       weeknights — Monday to Thursday, 22:00–07:30 (UTC−3) — leaving Friday
-       night and the whole weekend awake, and that is not in effect yet. When
-       it is, a project outside the window will answer that its database is
-       unreachable, and that will be expected rather than broken.</p>
+    <p>It sleeps four weeknights — Monday to Thursday, 22:00–07:30 (UTC−3) —
+       and is awake the rest of the time, Friday night and the whole weekend
+       included. Inside that window a project's card reads <em>down</em> or
+       <em>unknown</em>, and both are expected: when a project cannot answer
+       for itself, the platform in front of it answers instead, and this page
+       cannot read that answer. Outside the window, either one means something
+       is actually wrong.</p>
   </div>
 
   <footer>
