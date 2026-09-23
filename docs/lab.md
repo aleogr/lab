@@ -86,3 +86,15 @@ member of that role can grant itself back the `CONNECT` this revokes. The
 grant and the ceiling guard against **accident** — a runaway CI job, a
 mistyped connection string — not against deliberate action from inside.
 Between laboratories that share one owner, that is the accepted trade.
+
+## Who lives here
+
+| tenant | database | connection ceiling | how its Terraform is applied |
+|---|---|---|---|
+| `aleogr/marketplace` | `marketplace` | 14 | CI, as `terraform@` |
+| `codeschool-ing/schooling` | `schooling` | 8 | the owner, from Cloud Shell |
+
+The ceilings sum to 22, which is the whole instance: `max_connections` is 25
+and PostgreSQL reserves three for superusers. Each ceiling is that tenant's
+worst case read from its own code, and a third tenant is a new design, not a
+new row.
