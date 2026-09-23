@@ -11,7 +11,7 @@
    for. So the house says who may come in. */
 
 resource "google_project_iam_member" "tenant_deployers" {
-  for_each = var.tenants
+  for_each = { for name, tenant in var.tenants : name => tenant if tenant.declares != null }
 
   project = var.project_id
   role    = google_project_iam_custom_role.tenant.name
@@ -34,5 +34,16 @@ resource "google_project_iam_member" "tenant_logs_in" {
 
   project = var.project_id
   role    = "roles/cloudsql.instanceUser"
+  member  = "serviceAccount:${each.value}"
+}
+
+# `cloudsql.viewer` reads the instance and nothing else: no connection, no
+# write. A tenant's deploy reads `activationPolicy` before it starts, so a
+# release inside the sleep window stops with a sentence instead of a pgx error.
+resource "google_project_iam_member" "tenant_reads" {
+  for_each = toset(flatten([for tenant in var.tenants : tenant.reads]))
+
+  project = var.project_id
+  role    = "roles/cloudsql.viewer"
   member  = "serviceAccount:${each.value}"
 }
