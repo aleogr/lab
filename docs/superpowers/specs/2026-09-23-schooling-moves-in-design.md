@@ -113,10 +113,33 @@ point in time, which creates a new instance and does not touch the original;
 repository has, and cloning needs a permission a tenant does not hold. It is
 recorded here as the route if one is ever needed, not built.
 
-`schooling`'s restore drill survives the move with one change: it becomes the
-owner's to run, because cloning is. `verify.sql` discovers its tables from the
-database it connects to, so pointed at the `schooling` database inside a clone
-of `lab-postgres` it reports on `schooling` and nothing else.
+`schooling`'s restore drill is already the owner's to run: the script says it
+runs from Cloud Shell, with credentials that administer Cloud SQL, and never
+from CI. After the move it has to stay that way, because cloning `lab-postgres`
+is what `sqlTenant` denies. `verify.sql` discovers its tables from the database
+it connects to, so pointed at the `schooling` database inside a clone of
+`lab-postgres` it reports on `schooling` and nothing else. The one thing that
+changes is where it looks: the instance is in `aleogr-lab-shared-dacd` and the
+secret stays in `aleogr-schooling`, so the secret is named by its full resource
+name.
+
+**A restore is never tested over the live instance.** Taking a backup, making a
+small change and restoring over it was considered on 2026-09-23 and set aside:
+it takes the database down for the length of the restore, discards every write
+since the backup, and if the restore fails, what it broke is the database in
+use. The drill restores into a new instance and only ever reads the live one,
+which proves the same backup without any of that.
+
+**What a restore of `schooling` loses, read from its code on 2026-09-23.** Not
+the course content. The nineteen `catalog_*` tables are written by `cmd/load`
+alone, from `content/` in the repository, and their keys are text identifiers
+taken from the files, so a reload after a restore rebuilds the same catalogue
+under the same keys and nothing that points at it is orphaned. What is lost is
+every write since the restored moment that exists only in the database:
+accounts and sessions, study progress, practice, exams, notes, ratings,
+certificates, subscriptions and the ledger, the append-only event stream, the
+audit log and the record of job runs. The nightly analysis recomputes its own
+output from the answers that remain.
 
 ## D4 — The backup window does not need to move
 
@@ -148,12 +171,18 @@ seconds. Inside a nine-and-a-half-hour window it would fire every night, and
 `infra/monitoring.tf` itself argues that a daily false alarm is worse than
 none.
 
-The alert is disabled at 22:00 and re-enabled at 07:30 on the nights the
+The alert is disabled at 22:00 and re-enabled at 08:00 on the nights the
 instance sleeps, by two Cloud Scheduler jobs in `schooling`'s own project — the
 same mechanism `aleogr/lab` uses for the instance, applied by the tenant to the
 tenant's own alert. By D4 of the sleep design, the laboratory publishes the
 window and each tenant arranges its own work around it; this repository does
 not reach into `schooling`'s monitoring.
+
+08:00 and not 07:30, the minute the instance is started: it was measured
+taking 686 seconds to answer after a start, so re-enabling the alert at 07:30
+would arm it against ten minutes of probes that are expected to fail, and a
+policy that fires on 600 seconds of failure would fire. The same measurement is
+why D5's jobs start at 08:10.
 
 ## D7 — The deployment refuses a sleeping instance, legibly
 
@@ -163,6 +192,11 @@ images. A release inside the window fails at the `migrate` gate with a raw
 mode `aleogr/marketplace` removed on 2026-09-21. The same preflight is copied:
 read the instance's `activationPolicy` before anything else, and stop with a
 sentence naming the window if it is not `ALWAYS`.
+
+The release runs as `schooling-deploy@aleogr-schooling`, which holds nothing on
+the shared project. Reading the instance needs `cloudsql.instances.get` there,
+so `aleogr/lab` grants that identity `roles/cloudsql.viewer` — read, and
+nothing that connects or writes.
 
 ## D8 — The instance becomes a variable, and both are mounted during the move
 
@@ -182,26 +216,29 @@ written for exactly the case of a rename Terraform reads as a replacement.
 | who | what |
 |---|---|
 | **this session**, in `aleogr/lab` | this spec and its plan; `schooling` registered as a tenant; `docs/lab.md` naming its second tenant; the prompts that carry every change below to `schooling`'s session |
-| **`schooling`'s session**, in `codeschool-ing/schooling` | D2, D5, D6, D7 and D8, and running its restore drill against today's schema — every change in that repository, from prompts, merged by the owner |
-| **the owner**, in Cloud Shell | creating the database user on `lab-postgres`; the isolation grants; the copy; running the restore drill after the move |
+| **`schooling`'s session**, in `codeschool-ing/schooling` | D2, D5, D6, D7 and D8 — every change in that repository, from prompts, merged by the owner |
+| **the owner**, in Cloud Shell | the restore drill, before the move and after it; applying `schooling`'s Terraform, as today; creating the database user on `lab-postgres`; the isolation grants; the copy |
 
 This session never commits to `codeschool-ing/schooling`.
 
 ## The stages
 
 **Stage 1 — ready for the night, on the instance `schooling` has today.**
-First, the restore drill against today's schema: the only proof that exists
-is from 28 migrations ago, and the data is not touched until the backup of the
+First, the owner runs the restore drill from Cloud Shell against today's
+schema: the only proof that exists is from 28 migrations ago, and the data is not touched until the backup of the
 data as it stands has been restored and compared. Then D2 — measure, then set
 the pool — then D5, D6, D7 and D8, each its own pull request in `schooling`,
 each verified while the old instance serves.
 
 **Stage 2 — the laboratory takes a second tenant.** `schooling` is added to
-`gcp/terraform/lab/lab.tfvars` — the identity that applies its Terraform under
-`declares`, its runtime service account under `connects`, and nothing under
-`logs_in`, because `schooling` authenticates with a password rather than as an
-IAM user. `schooling` declares its own database on `lab-postgres`, as
-`marketplace` did. The owner creates the user and applies the same isolation
+`gcp/terraform/lab/lab.tfvars` — its runtime service account under `connects`,
+its deploy identity under a new `reads` for D7, and nothing under `logs_in`,
+because `schooling` authenticates with a password rather than as an IAM user.
+Nothing under `declares` either: `schooling`'s Terraform is applied by the
+owner from Cloud Shell, not by a service account, and the owner already holds
+more than `sqlTenant` on the shared project. `declares` becomes optional to say
+so, rather than naming a service account that applies nothing. `schooling`
+declares its own database on `lab-postgres`, as `marketplace` did. The owner creates the user and applies the same isolation
 `marketplace` has: `REVOKE CONNECT ON DATABASE schooling FROM PUBLIC`, a grant
 by name, `CONNECTION LIMIT 8`, and a throwaway role proving the revoke refuses
 it.
@@ -224,11 +261,6 @@ line allowed to differ. Identical, or stop. There is no third outcome and no
 
 ## What is not verified
 
-**Which identity applies `schooling`'s Terraform.** `aleogr/lab`'s
-`lab.tfvars` needs it under `declares`. The inventory names `schooling-run` as
-the runtime account shared by the service and its four jobs, and says
-`deploy` reads no secret; it does not name the Terraform identity.
-
 **Whether the tenant's user can run `CREATE EXTENSION pg_trgm`.** Migration
 0048 needs it on an empty database. The 2026-09-20 design asserts that a user
 created by `gcloud sql users create` belongs to `cloudsqlsuperuser` and can;
@@ -250,8 +282,10 @@ run 28 migrations ago. Stage 1 exists partly to find out.
 what closes it, and D5's schedules are paused as part of it.
 
 **The ceilings sum to the capacity exactly.** 14 + 8 = 22 leaves nothing for a
-third tenant, a manual `psql` session through the Auth Proxy, or a restore
-drill's connections. The third tenant is a future design's problem; the manual
+third tenant or for a manual `psql` session through the Auth Proxy. The restore
+drill costs one connection on the live instance, for the snapshot it reads
+first, and it comes out of `schooling`'s own 8; everything else it does is on
+the clone, which has connections of its own. The third tenant is a future design's problem; the manual
 session is the owner's to take outside a deployment.
 
 **`schooling` goes dark at night, and so does the index page's card for it.**
