@@ -187,7 +187,10 @@ ALTER DATABASE schooling   CONNECTION LIMIT 10;
 
 The `marketplace` ceiling above is what was planned; what was applied is
 **14** — see the arithmetic in `docs/infrastructure.md` in `aleogr/marketplace`.
-`schooling`'s `10` is still the plan.
+`schooling`'s `10` no longer fits. With `marketplace` at 14, the instance's
+22 tenant connections leave 8, and `schooling`'s own declared peak is 24.
+`docs/superpowers/specs/2026-09-23-schooling-moves-in-design.md` sets its
+ceiling at 8 and shrinks its pool to fit.
 
 When the split lands, `schooling_migrator` joins the `GRANT CONNECT` for the
 `schooling` database.
@@ -300,6 +303,13 @@ Only after Phase 1 is green.
    to differ. Identical, or stop. There is no third outcome and no "close".
 6. **Cut over.** A new version of the `schooling-database-url` secret pointing
    at the new instance's socket, then deploy and smoke-test.
+
+   **This step is wrong as written, and the 2026-09-23 design corrects it.**
+   `schooling`'s instance is written into five Cloud Run resources, not into
+   the secret alone, so a new secret version does not move it and does not
+   roll it back. See D8 of
+   `docs/superpowers/specs/2026-09-23-schooling-moves-in-design.md`.
+
 7. **Unfreeze** the schedulers.
 
 `verify.sql` is the right instrument and is already written: it produces a
