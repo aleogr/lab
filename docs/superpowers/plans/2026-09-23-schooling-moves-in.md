@@ -10,6 +10,27 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-23-schooling-moves-in-design.md`. It argues from `docs/superpowers/specs/2026-09-20-shared-database-instance-design.md` (Phase 2, the isolation grants) and `docs/superpowers/specs/2026-09-21-sleep-schedule-design.md` (the window). Read all three.
 
+## Status, 2026-09-23
+
+Stages 1–3 are done; Stage 4 is in its cool-down week. What ran, and where it
+departed from what is written below:
+
+| task | outcome |
+|---|---|
+| 1 | Drill on `aleogr-schooling` passed, 07:40:57Z: 931 lines identical, 56 tables, 21,368 rows, 52 migrations. It ran at night: `schooling`'s own instance never sleeps, so "by day" did not apply. It waited only for the backup window, whose `07:00` is the start of a four-hour window, not the time. |
+| 2 | Peak 8 connections (hour ending 2026-08-25T17:21Z); `schooling-load` 1m47s–4m28s. Measured with a Monitoring API query from Cloud Shell rather than Metrics Explorer. |
+| 3 | `codeschool-ing/schooling` #418: API pool 2, jobs 1, `max_instance_count = 1`, a `concurrency` group on the deploy, and `budget_test.go`; worst case 8. Its apply also carried three merged-but-never-applied changes from 2026-09-01 and 2026-09-16, because the owner's checkout was behind: every `schooling` apply now starts with `git pull --ff-only` on `main`. Live from release v0.52.0. |
+| 4 | #419: jobs at `10 8 * * *` and `40 8 * * *`; first runs at the new hours succeeded the same day. |
+| 5 | #420: `var.database_instances`; the restart command in `infra/README.md` proved once (`schooling-00065` → `00066`, plan empty). |
+| 6 | #421. **P4 was amended before it was handed over:** the preflight reads one literal, `DATABASE_CONNECTION`, not `var.database_instances`, which the workflow cannot read and which names two instances during the move. `roles/cloudsql.viewer` on `aleogr-schooling` for `schooling-deploy`; v0.52.0 passed through it. |
+| 7 | #422: custom role `schoolingAlertToggle`, account `schooling-alert-toggle`, jobs `schooling-alert-sleep` / `-wake`; silencing from now rather than gated. No `actAs` binding: the owner applies as Owner. Both jobs run by hand by day: `False`, then `True`. |
+| 8 | `aleogr/lab` #13; plan `2 to add`, the `marketplace` binding untouched; grants read back live. |
+| 9 | #423. **P6 was amended:** it also switched `DATABASE_CONNECTION` to `lab-postgres`. Plan `1 to add, 5 to change`. |
+| 10 | Done as written. `connect_probe` refused; `pg_trgm` created and dropped by `schooling`. |
+| 11 | 2026-09-23, 09:07–09:20 local. Before and after reports differed in three lines, none of them data; see "When a stage is done" in the spec. The owner proceeded. Secret version 2 is the new address, version 1 the way back; API revision `schooling-00069`; a `load` execution wrote the catalogue on `lab-postgres` at 12:17:34Z. |
+| 12 | Step 1 done: the old instance reports `NEVER` / `STOPPED` (not `RUNNABLE`). A restart with it stopped and still mounted gave `/readyz` 200. Steps 2–4 not before 2026-09-30. |
+| 13, 14 | Not started. |
+
 ## Global Constraints
 
 - Everything versioned is written in **English**. Talk to the owner in Portuguese.

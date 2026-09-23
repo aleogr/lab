@@ -1,7 +1,9 @@
 # Schooling moves in
 
 **Date:** 2026-09-23
-**Status:** agreed, not yet implemented
+**Status:** Stages 1–3 implemented on 2026-09-23; Stage 4 in cool-down until at
+least 2026-09-30. What happened is recorded under "What was measured" below
+and in the plan's status block.
 
 `marketplace` has lived on `lab-postgres` since 2026-09-21, and the instance
 has slept four weeknights since the same day. `schooling` still lives on an
@@ -48,6 +50,12 @@ reserved for the actual superuser, which a tenant's user is not, leaving 22.
 `MaxConns = 4` across `max_instance_count = 4`, plus `migrate` and `load` at 4
 each during a deployment. `schooling` alone does not fit on the instance, even
 with `marketplace` idle.
+
+*Correction, 2026-09-23:* the real worst case was **44**, not 24. The sum
+above left out the old and the new revision serving side by side during a
+rollout (2 × 4 × 4 = 32) and the two nightly jobs; two tags pushed close
+together could reach 48. `codeschool-ing/schooling`'s session found it while
+fitting the pool (its PR #418).
 
 The 2026-09-20 design reserved 10 for `schooling`. When `marketplace`'s ceiling
 was measured and raised from 10 to 14, nobody redid the sum.
@@ -144,7 +152,9 @@ output from the answers that remain.
 ## D4 — The backup window does not need to move
 
 `schooling`'s inventory listed moving its 04:00 backup out of the window as a
-blocker. It is not one. A backup belongs to an instance: after the move, the
+blocker. (04:00 local, `start_time = "07:00"` UTC, is the start of a four-hour
+window, not the time: the backups on 2026-09-20 to 2026-09-22 began between
+08:11 and 09:33 UTC.) It is not one. A backup belongs to an instance: after the move, the
 `schooling` data is backed up by `lab-postgres`, at 12:00 UTC, the window
 chosen on 2026-09-20 precisely because a stopped instance runs no backup — and
 observed producing backups on 2026-09-21 and 2026-09-22. The 04:00 setting
@@ -197,6 +207,12 @@ The release runs as `schooling-deploy@aleogr-schooling`, which holds nothing on
 the shared project. Reading the instance needs `cloudsql.instances.get` there,
 so `aleogr/lab` grants that identity `roles/cloudsql.viewer` — read, and
 nothing that connects or writes.
+
+The instance the preflight reads is one literal in `release.yml`,
+`DATABASE_CONNECTION`, not `var.database_instances`: the workflow does not
+read Terraform, and during the move that list names two instances while the
+data lives in one. It was switched to `lab-postgres` in the change that
+mounted both (Stage 2), so the cutover edited nothing in the repository.
 
 ## D8 — The instance becomes a variable, and both are mounted during the move
 
@@ -259,22 +275,56 @@ produces reports that are identical, line for line, less the one `snapshot|`
 line allowed to differ. Identical, or stop. There is no third outcome and no
 "close".
 
-## What is not verified
+**Corrected on 2026-09-23, during Stage 3.** A logical copy cannot meet that
+rule, and the rule was written without knowing it. `verify.sql` reports a
+column's `ordinal_position`, which is PostgreSQL's `attnum` and keeps the gap
+a dropped column leaves; `pg_dump` recreates the table without the gap. It
+also prints `CHECK` expressions as stored, and a nested `AND` written by an
+old migration is flattened when the dump is read back. The copy of
+`schooling` differed in exactly three lines, each of those two kinds:
 
-**Whether the tenant's user can run `CREATE EXTENSION pg_trgm`.** Migration
-0048 needs it on an empty database. The 2026-09-20 design asserts that a user
-created by `gcloud sql users create` belongs to `cloudsqlsuperuser` and can;
-it has not been tried on `lab-postgres`.
+| line | source | target | cause |
+|---|---|---|---|
+| `catalog_courses.slug` position | 12 | 11 | one dropped column in the source table |
+| `tenants.catalog_published_at` position | 9 | 7 | two dropped columns in the source table |
+| `catalog_images_are_pictures` | `((a AND b) AND c)` | `(a AND b AND c)` | nested `AND` flattened on re-parse |
 
-**`schooling`'s real connection usage.** D2 commits to the ceiling of 8; the
-split inside it waits on a measurement nobody has taken.
+The dropped columns were counted in the source (`pg_attribute.attisdropped`:
+1 and 2) before going on, every `rows|` line was identical, and the owner
+chose to proceed. The rule for a logical copy is therefore: identical less
+`snapshot|`, less column positions that the source's dropped columns account
+for, less `CHECK` text that differs only in parentheses — each named, never
+waved through as a class. A clone (the restore drill) is still held to
+identical.
 
-**How long `cmd/load` holds its single transaction.** It rewrites the content
-mirror atomically — 22 MB of content — and on a shared `db-f1-micro` it is the
-`schooling` operation most likely to be felt by `marketplace`. Never measured.
+## What was measured
 
-**Whether the restore drill still works against today's schema.** It was last
-run 28 migrations ago. Stage 1 exists partly to find out.
+Each of these was listed here as not verified when this design was written.
+
+**`CREATE EXTENSION pg_trgm` by the tenant's user: it can.** Created and
+dropped by `schooling` on the empty database on `lab-postgres`, 2026-09-23,
+before the copy needed it.
+
+**`schooling`'s real connection usage.** The most the database held in 30
+days was 8, in the hour ending 2026-08-25T17:21Z (hourly maximum of
+one-minute samples); no release ran in that hour. The split chosen from it:
+the API 2 per instance × 1 instance × 2 revisions during a rollout, one per
+job, one for a person — 8 exactly, held to the code by a test in
+`codeschool-ing/schooling` (`internal/platform/database/budget_test.go`).
+
+**How long `cmd/load` holds its single transaction.** The last ten
+executions took 1m47s to 4m28s end to end, container start and validation
+included; `schooling`'s session measured the transaction itself at about four
+seconds against a local database.
+
+**The restore drill against today's schema: it works.** Run on 2026-09-23 at
+07:40:57Z against `aleogr-schooling`: 931 report lines identical, 56 tables,
+21,368 rows, 52 migrations, clone deleted by the script. The drill against
+`lab-postgres` is Stage 4's and has not run yet.
+
+**A stopped instance that is still mounted does not stop Cloud Run starting
+the service.** Proved by day on 2026-09-23: with the old instance stopped and
+both mounted, a new revision started and `/readyz` answered 200.
 
 ## Risks
 
