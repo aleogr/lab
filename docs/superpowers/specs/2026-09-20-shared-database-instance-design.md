@@ -317,6 +317,9 @@ report rather than a verdict, discovers its tables from `information_schema`
 so a migration merged tomorrow is covered without anybody editing it, and
 reads everything in one `REPEATABLE READ` snapshot.
 
+*Done on 2026-09-23, by `docs/superpowers/plans/2026-09-23-schooling-moves-in.md`
+(its Task 11), with the corrections recorded there.*
+
 ### Phase 3 — cool down
 
 Both old instances stay **stopped for a week**, then are deleted (D7).
