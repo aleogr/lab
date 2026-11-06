@@ -1,7 +1,7 @@
 terraform {
-  # The same floors as aleogr/marketplace. Two configurations that address one
-  # instance on different provider majors is a difference nobody chose and
-  # nobody tests.
+  # The same floors as the tenants that address this instance. Two
+  # configurations on different provider majors for one instance is a
+  # difference nobody chose and nobody tests.
   required_version = "~> 1.16.0"
 
   required_providers {

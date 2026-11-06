@@ -62,9 +62,9 @@ resource "google_sql_database_instance" "shared" {
     }
 
     database_flags {
-      # The marketplace service authenticates with a token instead of a
-      # password. Password users are unaffected, so `schooling` keeps working
-      # exactly as it does today.
+      # Lets a tenant's service authenticate with a token instead of a
+      # password. Password users are unaffected, so `schooling` works the same
+      # with it on or off.
       name  = "cloudsql.iam_authentication"
       value = "on"
     }

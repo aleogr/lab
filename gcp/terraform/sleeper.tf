@@ -74,10 +74,9 @@ resource "google_project_iam_member" "sleeper" {
 # states explicitly rather than leaves to the graph, since neither job
 # resource references this binding to imply it.
 #
-# THE PATTERN IS NOT NEW. `aleogr/marketplace`'s `infra/terraform/tasks.tf`
-# grants its own Cloud Tasks invoker the identical binding, for the identical
-# reason its own comment gives: "Creating a task that runs as the invoker
-# means acting as it."
+# THE PATTERN IS NOT NEW. Any identity that creates a job or a task running
+# as another service account needs this binding, for the same reason:
+# creating something that runs as an identity means acting as it.
 resource "google_service_account_iam_member" "deployer_acts_as_sleeper" {
   service_account_id = google_service_account.sleeper.name
   role               = "roles/iam.serviceAccountUser"

@@ -8,8 +8,8 @@ every project in it.
 
 What is **true about the laboratory as a whole**. What is true about one project
 lives in that project. The sleep schedule is the laboratory's, because stopping
-the instance affects everyone; the `marketplace` database's connection ceiling
-is the marketplace's, because its own pool is what sets the number.
+the instance affects everyone; a tenant database's connection ceiling is that
+tenant's, because its own pool is what sets the number.
 
 Without that rule, "it belongs to the lab" becomes the answer for anything
 nobody knows where to put.
