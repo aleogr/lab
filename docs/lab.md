@@ -20,7 +20,7 @@ why, including what this arrangement does *not* protect against.
 | Shared project | `aleogr-lab-shared-<4 random>` |
 | Shared instance | `lab-postgres` — named for what it is, never for the first project that used it |
 | Database | the project's own name |
-| Database role | the project's name as a prefix: `marketplace_migrator`, not `migrator`. Roles are cluster-wide objects, so a generic name on a shared instance is a collision waiting for the second tenant |
+| Database role | the project's name as a prefix: `<project>_migrator`, never `migrator`. Roles are cluster-wide objects, so a generic name on a shared instance is a collision waiting for the second tenant |
 
 ## When the instance is awake
 
@@ -48,9 +48,9 @@ means changing both operative places**, `sleep.tf` and the arguments in
 
 **A tenant whose own work runs at night moves it, in its own repository.**
 This project does not reach into a tenant's Cloud Scheduler for the same
-reason it does not declare a tenant's database. `aleogr/marketplace` moved two
-jobs for exactly this reason: an audit walk that ran at 01:17, and an outbox
-dispatch that ran every minute of every day.
+reason it does not declare a tenant's database. An audit walk at 01:17 or a
+dispatch that runs every minute of every day is the kind of job that has to
+move.
 
 Two consequences, and both have bitten somebody:
 
@@ -91,10 +91,9 @@ Between laboratories that share one owner, that is the accepted trade.
 
 | tenant | database | connection ceiling | how its Terraform is applied |
 |---|---|---|---|
-| `aleogr/marketplace` | `marketplace` | 14 | CI, as `terraform@` |
 | `codeschool-ing/schooling` | `schooling` | 8 | the owner, from Cloud Shell |
 
-The ceilings sum to 22, which is the whole instance: `max_connections` is 25
-and PostgreSQL reserves three for superusers. Each ceiling is that tenant's
-worst case read from its own code, and a third tenant is a new design, not a
-new row.
+`max_connections` is 25 and PostgreSQL reserves three for superusers, so 22
+are for tenants. The ceilings sum to 8, which leaves 14 for the next one. Each
+ceiling is that tenant's worst case read from its own code, and a new tenant
+has to fit inside what is left; the instance is not resized to make room.
