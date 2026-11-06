@@ -92,8 +92,9 @@ Between laboratories that share one owner, that is the accepted trade.
 | tenant | database | connection ceiling | how its Terraform is applied |
 |---|---|---|---|
 | `codeschool-ing/schooling` | `schooling` | 8 | the owner, from Cloud Shell |
+| `aleogr/iam` | `iam` | 6 | CI, as `iam-deployer@aleogr-lab-iam-c4vc` |
 
 `max_connections` is 25 and PostgreSQL reserves three for superusers, so 22
-are for tenants. The ceilings sum to 8, which leaves 14 for the next one. Each
+are for tenants. The ceilings sum to 14, which leaves 8 for the next one. Each
 ceiling is that tenant's worst case read from its own code, and a new tenant
 has to fit inside what is left; the instance is not resized to make room.
